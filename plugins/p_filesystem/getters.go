@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/lariv-in/lago/getters"
-	"github.com/lariv-in/lago/lago"
+	"github.com/UniquityVentures/lago/getters"
+	"github.com/UniquityVentures/lago/lago"
 )
 
 func currentVNodeTitle() getters.Getter[string] {

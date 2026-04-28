@@ -1,10 +1,10 @@
-module github.com/lariv-in/lago/plugins/p_livereloading
+module github.com/UniquityVentures/lago/plugins/p_livereloading
 
 go 1.26.1
 
 require (
-	github.com/lariv-in/lago/components v0.5.9
-	github.com/lariv-in/lago/lago v0.5.10
+	github.com/UniquityVentures/lago/components v0.5.9
+	github.com/UniquityVentures/lago/lago v0.5.10
 	golang.org/x/net v0.53.0
 	maragu.dev/gomponents v1.2.0
 )
@@ -40,9 +40,9 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/lariv-in/lago/getters v0.5.9 // indirect
-	github.com/lariv-in/lago/registry v0.5.9 // indirect
-	github.com/lariv-in/lago/views v0.5.9 // indirect
+	github.com/UniquityVentures/lago/getters v0.5.9 // indirect
+	github.com/UniquityVentures/lago/registry v0.5.9 // indirect
+	github.com/UniquityVentures/lago/views v0.5.9 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-runewidth v0.0.21 // indirect
 	github.com/mattn/go-sqlite3 v1.14.37 // indirect

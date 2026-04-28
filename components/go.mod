@@ -1,11 +1,11 @@
-module github.com/lariv-in/lago/components
+module github.com/UniquityVentures/lago/components
 
 go 1.26.1
 
 require (
 	github.com/gomarkdown/markdown v0.0.0-20260217112301-37c66b85d6ab
-	github.com/lariv-in/lago/getters v0.5.10
-	github.com/lariv-in/lago/registry v0.5.10
+	github.com/UniquityVentures/lago/getters v0.5.10
+	github.com/UniquityVentures/lago/registry v0.5.10
 	gorm.io/datatypes v1.2.7
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lariv-in/lago/getters"
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/getters"
+	"github.com/UniquityVentures/lago/registry"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"maragu.dev/gomponents"

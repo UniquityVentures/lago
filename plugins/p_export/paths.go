@@ -1,6 +1,6 @@
 package p_export
 
-import "github.com/lariv-in/lago/lago"
+import "github.com/UniquityVentures/lago/lago"
 
 func init() {
 	_ = lago.RegistryRoute.Register("export.PageRoute", lago.Route{

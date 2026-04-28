@@ -1,9 +1,9 @@
 package p_dashboard
 
 import (
-	"github.com/lariv-in/lago/components"
-	"github.com/lariv-in/lago/lago"
-	pcomps "github.com/lariv-in/lago/plugins/p_dashboard/components"
+	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/lago"
+	pcomps "github.com/UniquityVentures/lago/plugins/p_dashboard/components"
 )
 
 func init() {

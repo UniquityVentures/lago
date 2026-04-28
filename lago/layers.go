@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/lariv-in/lago/getters"
+	"github.com/UniquityVentures/lago/getters"
 	"gorm.io/gorm"
 )
 

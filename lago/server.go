@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/lariv-in/lago/registry"
-	"github.com/lariv-in/lago/views"
+	"github.com/UniquityVentures/lago/registry"
+	"github.com/UniquityVentures/lago/views"
 	_ "gorm.io/driver/sqlite"
 )
 
@@ -50,9 +50,9 @@ func StartServer(config LagoConfig) error {
 			return err
 		}
 		defer ln.Close()
-		slog.Info("Listening", "UDS", config.UDS);
+		slog.Info("Listening", "UDS", config.UDS)
 		return http.Serve(ln, router)
 	}
-	slog.Info("Listening", "TCP", config.Address);
+	slog.Info("Listening", "TCP", config.Address)
 	return http.ListenAndServe(config.Address, router)
 }

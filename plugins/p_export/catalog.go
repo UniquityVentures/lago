@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/lariv-in/lago/lago"
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/registry"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )

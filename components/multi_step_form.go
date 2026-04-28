@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lariv-in/lago/getters"
+	"github.com/UniquityVentures/lago/getters"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -30,9 +30,11 @@ type MultiStepForm struct {
 	MultiStageURL getters.Getter[string]
 }
 
-var _ FormInterface = MultiStepForm{}
-var _ ParentInterface = MultiStepForm{}
-var _ MutableParentInterface = (*MultiStepForm)(nil)
+var (
+	_ FormInterface          = MultiStepForm{}
+	_ ParentInterface        = MultiStepForm{}
+	_ MutableParentInterface = (*MultiStepForm)(nil)
+)
 
 func (e MultiStepForm) Build(ctx context.Context) Node {
 	if len(e.Stages) == 0 {

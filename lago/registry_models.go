@@ -3,7 +3,7 @@ package lago
 import (
 	"log/slog"
 
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/registry"
 	"gorm.io/gorm"
 )
 

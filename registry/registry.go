@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lariv-in/lago/getters"
+	"github.com/UniquityVentures/lago/getters"
 )
 
 func NewRegistry[T any]() *Registry[T] {

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/lariv-in/lago/components"
-	"github.com/lariv-in/lago/getters"
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/getters"
+	"github.com/UniquityVentures/lago/registry"
 )
 
 type View struct {

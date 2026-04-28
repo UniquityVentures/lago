@@ -4,7 +4,7 @@ import (
 	"context"
 	"maps"
 
-	"github.com/lariv-in/lago/getters"
+	"github.com/UniquityVentures/lago/getters"
 )
 
 func ContextWithMap[K comparable, V any](ctx context.Context, m map[K]V, key any) context.Context {

@@ -1,3 +1,3 @@
-module github.com/lariv-in/lago/syncmap
+module github.com/UniquityVentures/lago/syncmap
 
 go 1.26.1

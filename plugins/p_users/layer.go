@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/UniquityVentures/lago/getters"
+	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/views"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/lariv-in/lago/getters"
-	"github.com/lariv-in/lago/lago"
-	"github.com/lariv-in/lago/views"
 	"gorm.io/gorm"
 )
 

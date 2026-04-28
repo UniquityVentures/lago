@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/lariv-in/lago/components"
+	"github.com/UniquityVentures/lago/components"
 )
 
 type MultiStepFormLayer struct{}

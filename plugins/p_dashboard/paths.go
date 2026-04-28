@@ -1,7 +1,7 @@
 package p_dashboard
 
 import (
-	"github.com/lariv-in/lago/lago"
+	"github.com/UniquityVentures/lago/lago"
 )
 
 func init() {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/lariv-in/lago/components"
+	"github.com/UniquityVentures/lago/components"
 	"maragu.dev/gomponents"
 )
 

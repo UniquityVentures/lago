@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/lariv-in/lago/lago"
+	"github.com/UniquityVentures/lago/lago"
 )
 
 type StorageBackend string

@@ -3,7 +3,7 @@ package p_google_genai
 import (
 	"strings"
 
-	"github.com/lariv-in/lago/lago"
+	"github.com/UniquityVentures/lago/lago"
 )
 
 type Config struct {

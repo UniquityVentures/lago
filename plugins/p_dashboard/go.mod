@@ -1,14 +1,14 @@
-module github.com/lariv-in/lago/plugins/p_dashboard
+module github.com/UniquityVentures/lago/plugins/p_dashboard
 
 go 1.26.1
 
 require (
-	github.com/lariv-in/lago/components v0.5.10
-	github.com/lariv-in/lago/getters v0.5.10
-	github.com/lariv-in/lago/lago v0.5.10
-	github.com/lariv-in/lago/plugins/p_users v0.5.10
-	github.com/lariv-in/lago/registry v0.5.9
-	github.com/lariv-in/lago/views v0.5.10
+	github.com/UniquityVentures/lago/components v0.5.10
+	github.com/UniquityVentures/lago/getters v0.5.10
+	github.com/UniquityVentures/lago/lago v0.5.10
+	github.com/UniquityVentures/lago/plugins/p_users v0.5.10
+	github.com/UniquityVentures/lago/registry v0.5.9
+	github.com/UniquityVentures/lago/views v0.5.10
 	maragu.dev/gomponents v1.3.0
 )
 

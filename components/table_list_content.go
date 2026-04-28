@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lariv-in/lago/getters"
+	"github.com/UniquityVentures/lago/getters"
 	. "maragu.dev/gomponents"
 	g_html "maragu.dev/gomponents/html"
 )

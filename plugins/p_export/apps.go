@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/url"
 
-	"github.com/lariv-in/lago/lago"
+	"github.com/UniquityVentures/lago/lago"
 )
 
 const AppUrl = "/export/"

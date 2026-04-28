@@ -8,14 +8,16 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/lariv-in/lago/getters"
+	"github.com/UniquityVentures/lago/getters"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
 // Pinned MapLibre for [MapDisplay]; matches seer map plugins.
-const mapDisplayLibreCDNVersion = "4.7.1"
-const mapDisplayCBORXCDNVersion = "1.6.0"
+const (
+	mapDisplayLibreCDNVersion = "4.7.1"
+	mapDisplayCBORXCDNVersion = "1.6.0"
+)
 
 var mapDisplayIDSanitize = regexp.MustCompile(`[^a-zA-Z0-9-]+`)
 

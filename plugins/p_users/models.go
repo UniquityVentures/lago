@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"log"
 
-	"github.com/lariv-in/lago/lago"
+	"github.com/UniquityVentures/lago/lago"
 	"gorm.io/gorm"
 )
 

@@ -4,7 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/registry"
 )
 
 func Start(config LagoConfig) error {

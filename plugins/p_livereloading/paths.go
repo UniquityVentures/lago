@@ -3,7 +3,7 @@ package p_livereloading
 import (
 	"io"
 
-	"github.com/lariv-in/lago/lago"
+	"github.com/UniquityVentures/lago/lago"
 
 	"golang.org/x/net/websocket"
 )
@@ -17,7 +17,6 @@ func registerRoutes() {
 		Path:    "/_livereload",
 		Handler: websocket.Handler(NilServer),
 	})
-
 }
 
 func init() {

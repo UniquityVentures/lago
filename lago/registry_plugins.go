@@ -3,7 +3,7 @@ package lago
 import (
 	"net/url"
 
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/registry"
 )
 
 type PluginType int

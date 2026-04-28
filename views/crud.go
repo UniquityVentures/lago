@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/UniquityVentures/lago/components"
 	"github.com/go-viper/mapstructure/v2"
-	"github.com/lariv-in/lago/components"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )

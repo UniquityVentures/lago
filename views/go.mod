@@ -1,12 +1,12 @@
-module github.com/lariv-in/lago/views
+module github.com/UniquityVentures/lago/views
 
 go 1.26.1
 
 require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
-	github.com/lariv-in/lago/components v0.5.10
-	github.com/lariv-in/lago/getters v0.5.10
-	github.com/lariv-in/lago/registry v0.5.10
+	github.com/UniquityVentures/lago/components v0.5.10
+	github.com/UniquityVentures/lago/getters v0.5.10
+	github.com/UniquityVentures/lago/registry v0.5.10
 	gorm.io/gorm v1.31.1
 	maragu.dev/gomponents v1.3.0
 )

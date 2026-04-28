@@ -1,7 +1,7 @@
 package lago
 
 import (
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/registry"
 )
 
 type Config interface {

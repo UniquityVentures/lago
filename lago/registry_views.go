@@ -4,10 +4,10 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/lariv-in/lago/components"
-	"github.com/lariv-in/lago/getters"
-	"github.com/lariv-in/lago/registry"
-	"github.com/lariv-in/lago/views"
+	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/getters"
+	"github.com/UniquityVentures/lago/registry"
+	"github.com/UniquityVentures/lago/views"
 	. "maragu.dev/gomponents"
 )
 

@@ -7,8 +7,8 @@ import (
 	"mime/multipart"
 	"strings"
 
-	"github.com/lariv-in/lago/components"
-	"github.com/lariv-in/lago/getters"
+	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/getters"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )

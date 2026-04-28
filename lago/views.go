@@ -3,8 +3,8 @@ package lago
 import (
 	"log"
 
-	"github.com/lariv-in/lago/components"
-	"github.com/lariv-in/lago/views"
+	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/views"
 )
 
 func GetPageView(pageName string) *views.View {

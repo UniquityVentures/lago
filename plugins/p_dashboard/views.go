@@ -3,9 +3,9 @@ package p_dashboard
 import (
 	"context"
 
-	"github.com/lariv-in/lago/lago"
-	"github.com/lariv-in/lago/plugins/p_users"
-	"github.com/lariv-in/lago/views"
+	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/plugins/p_users"
+	"github.com/UniquityVentures/lago/views"
 )
 
 func init() {

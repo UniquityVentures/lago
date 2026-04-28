@@ -1,6 +1,6 @@
 package p_pwa
 
-import "github.com/lariv-in/lago/lago"
+import "github.com/UniquityVentures/lago/lago"
 
 func init() {
 	_ = lago.RegistryRoute.Register("pwa.ManifestRoute", lago.Route{
@@ -17,7 +17,6 @@ func init() {
 		Path:    "/offline",
 		Handler: lago.NewDynamicView(offlineViewKey),
 	})
-
 
 	_ = lago.RegistryRoute.Register("pwa.assetLinks", lago.Route{
 		Path:    "/.well-known/assetlinks.json",

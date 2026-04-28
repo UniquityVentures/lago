@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lariv-in/lago/getters"
-	"github.com/lariv-in/lago/lago"
-	"github.com/lariv-in/lago/views"
+	"github.com/UniquityVentures/lago/getters"
+	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/views"
 	"gorm.io/gorm"
 )
 

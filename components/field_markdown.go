@@ -5,11 +5,11 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/UniquityVentures/lago/getters"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/ast"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
-	"github.com/lariv-in/lago/getters"
 	"maragu.dev/gomponents"
 	ghtml "maragu.dev/gomponents/html"
 )

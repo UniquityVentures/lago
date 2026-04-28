@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/mail"
 
-	"github.com/lariv-in/lago/lago"
+	"github.com/UniquityVentures/lago/lago"
 	"github.com/nyaruka/phonenumbers"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"

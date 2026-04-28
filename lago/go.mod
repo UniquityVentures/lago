@@ -1,4 +1,4 @@
-module github.com/lariv-in/lago/lago
+module github.com/UniquityVentures/lago/lago
 
 go 1.26.1
 
@@ -8,10 +8,10 @@ require (
 	charm.land/lipgloss/v2 v2.0.2
 	github.com/BurntSushi/toml v1.6.0
 	github.com/jackc/pgx/v5 v5.9.1
-	github.com/lariv-in/lago/components v0.5.10
-	github.com/lariv-in/lago/getters v0.5.10
-	github.com/lariv-in/lago/registry v0.5.10
-	github.com/lariv-in/lago/views v0.5.10
+	github.com/UniquityVentures/lago/components v0.5.10
+	github.com/UniquityVentures/lago/getters v0.5.10
+	github.com/UniquityVentures/lago/registry v0.5.10
+	github.com/UniquityVentures/lago/views v0.5.10
 	github.com/spf13/cobra v1.10.2
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0

@@ -8,10 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/lariv-in/lago/components"
-	"github.com/lariv-in/lago/lago"
-	"github.com/lariv-in/lago/registry"
-	"github.com/lariv-in/lago/views"
+	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/registry"
+	"github.com/UniquityVentures/lago/views"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )

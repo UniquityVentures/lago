@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lariv-in/lago/getters"
+	"github.com/UniquityVentures/lago/getters"
 )
 
 func TestClientTabsBuild(t *testing.T) {

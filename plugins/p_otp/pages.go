@@ -1,9 +1,9 @@
 package p_otp
 
 import (
-	"github.com/lariv-in/lago/components"
-	"github.com/lariv-in/lago/lago"
-	"github.com/lariv-in/lago/plugins/p_users"
+	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/plugins/p_users"
 	"gorm.io/gorm"
 )
 

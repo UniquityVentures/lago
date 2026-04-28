@@ -1,8 +1,8 @@
 package lago
 
 import (
-	"github.com/lariv-in/lago/registry"
-	"github.com/lariv-in/lago/views"
+	"github.com/UniquityVentures/lago/registry"
+	"github.com/UniquityVentures/lago/views"
 )
 
 var RegistryLayer *registry.Registry[views.GlobalLayer] = registry.NewRegistry[views.GlobalLayer]()

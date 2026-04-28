@@ -1,12 +1,12 @@
-module github.com/lariv-in/lago/plugins/p_google_genai
+module github.com/UniquityVentures/lago/plugins/p_google_genai
 
 go 1.26.1
 
 require (
-	github.com/lariv-in/lago/components v0.5.10
-	github.com/lariv-in/lago/getters v0.5.10
-	github.com/lariv-in/lago/lago v0.5.10
-	github.com/lariv-in/lago/plugins/p_users v0.5.10
+	github.com/UniquityVentures/lago/components v0.5.10
+	github.com/UniquityVentures/lago/getters v0.5.10
+	github.com/UniquityVentures/lago/lago v0.5.10
+	github.com/UniquityVentures/lago/plugins/p_users v0.5.10
 	google.golang.org/genai v1.54.0
 )
 
@@ -54,8 +54,8 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/lariv-in/lago/registry v0.5.10 // indirect
-	github.com/lariv-in/lago/views v0.5.10 // indirect
+	github.com/UniquityVentures/lago/registry v0.5.10 // indirect
+	github.com/UniquityVentures/lago/views v0.5.10 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mattn/go-runewidth v0.0.22 // indirect
 	github.com/mattn/go-sqlite3 v1.14.40 // indirect
@@ -91,14 +91,14 @@ require (
 	maragu.dev/gomponents v1.3.0 // indirect
 )
 
-replace github.com/lariv-in/lago/components => ../../components
+replace github.com/UniquityVentures/lago/components => ../../components
 
-replace github.com/lariv-in/lago/getters => ../../getters
+replace github.com/UniquityVentures/lago/getters => ../../getters
 
-replace github.com/lariv-in/lago/lago => ../../lago
+replace github.com/UniquityVentures/lago/lago => ../../lago
 
-replace github.com/lariv-in/lago/plugins/p_users => ../p_users
+replace github.com/UniquityVentures/lago/plugins/p_users => ../p_users
 
-replace github.com/lariv-in/lago/registry => ../../registry
+replace github.com/UniquityVentures/lago/registry => ../../registry
 
-replace github.com/lariv-in/lago/views => ../../views
+replace github.com/UniquityVentures/lago/views => ../../views

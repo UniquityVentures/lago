@@ -3,9 +3,9 @@ package p_filesystem
 import (
 	"time"
 
-	"github.com/lariv-in/lago/components"
-	"github.com/lariv-in/lago/getters"
-	"github.com/lariv-in/lago/lago"
+	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/getters"
+	"github.com/UniquityVentures/lago/lago"
 )
 
 func selectionTable(name, filterName, childRoute string, multi, selectDirectories bool) *components.Modal {

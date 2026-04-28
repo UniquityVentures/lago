@@ -3,8 +3,8 @@ package components
 import (
 	"context"
 
-	"github.com/lariv-in/lago/getters"
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/getters"
+	"github.com/UniquityVentures/lago/registry"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )

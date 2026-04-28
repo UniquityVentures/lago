@@ -4,7 +4,7 @@ import (
 	"maps"
 	"net/http"
 
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/registry"
 )
 
 type FormPatcher interface {

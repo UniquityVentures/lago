@@ -1,8 +1,8 @@
 package lago
 
 import (
-	"github.com/lariv-in/lago/components"
-	"github.com/lariv-in/lago/registry"
+	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/registry"
 )
 
 var RegistryPage *registry.Registry[components.PageInterface] = registry.NewRegistry[components.PageInterface]()
