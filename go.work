@@ -1,0 +1,18 @@
+go 1.26.1
+
+use (
+	./components
+	./getters
+	./lago
+	./plugins/p_dashboard
+	./plugins/p_export
+	./plugins/p_filesystem
+	./plugins/p_google_genai
+	./plugins/p_livereloading
+	./plugins/p_otp
+	./plugins/p_pwa
+	./plugins/p_users
+	./registry
+	./syncmap
+	./views
+)
