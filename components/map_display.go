@@ -318,7 +318,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     setTimeout(mapDisplayRunInit, 50);
     return;
   }
-  var styleLight = "https://demotiles.maplibre.org/style.json";
+  var styleLight = "https://tiles.openfreemap.org/styles/liberty";
   var styleDark = "https://tiles.openfreemap.org/styles/dark";
   function themeIsDark() {
     try {
