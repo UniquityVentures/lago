@@ -84,6 +84,10 @@ func mapDisplayIDSuffix(pageKey string) string {
 //     enters layered mode; markers without layer use logical id "_". Legacy single-cluster
 //     behavior applies when no marker has layer set. In layered mode, toggles are implemented
 //     as a MapLibre IControl (maplibregl-ctrl-group) on the map, not as separate page chrome.
+//   - color (optional): CSS color string (e.g. hex or rgb). Undirected markers use it for the
+//     circle fill; directed markers tint the arrow when no custom icon is set.
+//   - icon (optional): URL for a raster image (http(s), //, site-relative /..., or data:image/...).
+//     Loaded into the map style and drawn for that marker (undirected: symbol; directed: rotated symbol).
 //
 // Extrapolated coordinates (seconds): responseTime = wall clock when a message was parsed;
 // tRef = time ?? responseTime; lng = position.lng + max(0, now - tRef) * (velocity?.x ?? 0);
@@ -309,6 +313,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   var srcD = "md-" + suffix + "-d-src";
   var layCC = "md-" + suffix + "-c-clusters";
   var layCP = "md-" + suffix + "-c-points";
+  var layCPI = "md-" + suffix + "-c-icons";
   var layDS = "md-" + suffix + "-d-sym";
   var imgArrow = "md-" + suffix + "-arrow";
 
@@ -343,6 +348,11 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
         map.off("mouseenter", layCP, pointerCursor);
         map.off("mouseleave", layCP, defaultCursor);
       }
+      if (map.getLayer(layCPI)) {
+        map.off("click", layCPI, onUndirectedPointClick);
+        map.off("mouseenter", layCPI, pointerCursor);
+        map.off("mouseleave", layCPI, defaultCursor);
+      }
       if (map.getLayer(layDS)) {
         map.off("click", layDS, onDirectedClick);
         map.off("mouseenter", layDS, pointerCursor);
@@ -360,6 +370,11 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
           map.off("click", x.layCP, x.hUP);
           map.off("mouseenter", x.layCP, pointerCursor);
           map.off("mouseleave", x.layCP, defaultCursor);
+        }
+        if (x.layCPI && map.getLayer(x.layCPI) && x.hUP) {
+          map.off("click", x.layCPI, x.hUP);
+          map.off("mouseenter", x.layCPI, pointerCursor);
+          map.off("mouseleave", x.layCPI, defaultCursor);
         }
         if (x.layDS && map.getLayer(x.layDS) && x.hDS) {
           map.off("click", x.layDS, x.hDS);
@@ -380,15 +395,14 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     return Math.atan2(dx, dy) * 180 / Math.PI;
   }
 
-  function addArrowImage() {
-    if (!map || typeof map.addImage !== "function") { return; }
+  function ensureColoredArrowImage(arrowImageId, fillCss) {
+    if (!map || typeof map.addImage !== "function" || !arrowImageId) { return; }
+    if (map.hasImage && map.hasImage(arrowImageId)) { return; }
     var sz = 64, c = document.createElement("canvas");
     c.width = sz; c.height = sz;
     var x = c.getContext("2d");
     if (!x) { return; }
-    if (map.hasImage && map.hasImage(imgArrow) && map.removeImage) {
-      try { map.removeImage(imgArrow); } catch (e1) {}
-    }
+    var fill = (typeof fillCss === "string" && fillCss.trim()) ? fillCss.trim() : "rgba(59, 130, 246, 0.95)";
     x.clearRect(0, 0, sz, sz);
     x.save();
     x.translate(sz/2, sz/2);
@@ -398,16 +412,20 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     x.lineTo(0, 2);
     x.lineTo(-14, 12);
     x.closePath();
-    x.fillStyle = "rgba(59, 130, 246, 0.95)";
+    x.fillStyle = fill;
     x.fill();
     x.lineWidth = 2;
     x.strokeStyle = "rgba(255, 255, 255, 0.95)";
     x.stroke();
     x.restore();
     var idata = x.getImageData(0, 0, sz, sz);
-    try { map.addImage(imgArrow, idata, { pixelRatio: 1 }); } catch (e2) {
-      try { map.addImage(imgArrow, idata); } catch (e3) {}
+    try { map.addImage(arrowImageId, idata, { pixelRatio: 1 }); } catch (e2) {
+      try { map.addImage(arrowImageId, idata); } catch (e3) {}
     }
+  }
+
+  function addArrowImage() {
+    ensureColoredArrowImage(imgArrow, "rgba(59, 130, 246, 0.95)");
   }
 
   function cborMapToObject(v) {
@@ -462,6 +480,136 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     var dx = d.x !== undefined ? +d.x : +d.X;
     var dy = d.y !== undefined ? +d.y : +d.Y;
     return isFinite(dx) && isFinite(dy) && (dx !== 0 || dy !== 0);
+  }
+
+  function rowColorString(row) {
+    if (!row || typeof row !== "object") { return ""; }
+    var c = row.color;
+    if (typeof c === "string" && c.trim()) { return c.trim(); }
+    c = row.Color;
+    if (typeof c === "string" && c.trim()) { return c.trim(); }
+    return "";
+  }
+
+  function rowIconString(row) {
+    if (!row || typeof row !== "object") { return ""; }
+    var ic = row.icon;
+    if (typeof ic === "string" && ic.trim()) { return ic.trim(); }
+    ic = row.Icon;
+    if (typeof ic === "string" && ic.trim()) { return ic.trim(); }
+    return "";
+  }
+
+  function isIconLoadableURL(s) {
+    if (!s || typeof s !== "string") { return false; }
+    if (/^https?:\/\//i.test(s)) { return true; }
+    if (/^\/\//.test(s)) { return true; }
+    if (/^\//.test(s)) { return true; }
+    if (/^data:image\//i.test(s)) { return true; }
+    return false;
+  }
+
+  function resolveIconURL(s) {
+    if (!s) { return ""; }
+    if (/^\/\//.test(s)) {
+      try {
+        var p = window.location && window.location.protocol;
+        return (p || "https:") + s;
+      } catch (eRes) { return "https:" + s; }
+    }
+    if (/^\//.test(s) && window.location && window.location.origin) {
+      return window.location.origin + s;
+    }
+    return s;
+  }
+
+  function hashStr(s) {
+    var h = 0;
+    if (!s) { return "0"; }
+    for (var i = 0; i < s.length; i++) {
+      h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    }
+    return (h >>> 0).toString(16) + "-" + String(s.length);
+  }
+
+  function markerIconImageId(resolvedURL) {
+    return "md-" + suffix + "-mi-" + hashStr(resolvedURL);
+  }
+
+  function applyMarkerStyleToProps(row, props) {
+    var cStr = rowColorString(row);
+    if (cStr) { props.mdColor = cStr; }
+    var icRaw = rowIconString(row);
+    if (icRaw && isIconLoadableURL(icRaw)) {
+      var abs = resolveIconURL(icRaw);
+      if (abs) { props.mdIconImgId = markerIconImageId(abs); }
+    }
+    if (hasDirection(row) && !props.mdIconImgId && cStr) {
+      props.arrowImg = imgArrow + "-c-" + hashStr(cStr);
+    }
+  }
+
+  function collectMarkerIconURLs(items) {
+    var out = [];
+    var seen = {};
+    (items || []).forEach(function (row) {
+      var u = rowIconString(row);
+      if (!isIconLoadableURL(u)) { return; }
+      var abs = resolveIconURL(u);
+      if (!abs || seen[abs]) { return; }
+      seen[abs] = true;
+      out.push(abs);
+    });
+    return out;
+  }
+
+  function preloadMarkerIcons(urls, done) {
+    if (!map || !urls || !urls.length) {
+      if (typeof done === "function") { done(); }
+      return;
+    }
+    var left = urls.length;
+    function step() {
+      left--;
+      if (left <= 0 && typeof done === "function") { done(); }
+    }
+    urls.forEach(function (url) {
+      var id = markerIconImageId(url);
+      if (map.hasImage && map.hasImage(id)) { step(); return; }
+      if (typeof map.loadImage !== "function") { step(); return; }
+      map.loadImage(url, function (err, image) {
+        if (!err && image) {
+          try {
+            if (map.hasImage && map.hasImage(id) && map.removeImage) {
+              try { map.removeImage(id); } catch (eRmI) {}
+            }
+          } catch (eRmI2) {}
+          try { map.addImage(id, image); } catch (eAdI) {}
+        }
+        step();
+      });
+    });
+  }
+
+  function ensureDirectedArrowsFromItems() {
+    if (!rawItems || !rawItems.length) { return; }
+    rawItems.forEach(function (row) {
+      if (!hasDirection(row)) { return; }
+      if (isIconLoadableURL(rowIconString(row))) { return; }
+      var cStr = rowColorString(row);
+      if (!cStr) { return; }
+      var aid = imgArrow + "-c-" + hashStr(cStr);
+      ensureColoredArrowImage(aid, cStr);
+    });
+  }
+
+  function clusteredHasIconFeatures(fc) {
+    if (!fc || !fc.features) { return false; }
+    for (var i = 0; i < fc.features.length; i++) {
+      var p = fc.features[i].properties || {};
+      if (p.mdIconImgId) { return true; }
+    }
+    return false;
   }
 
   function positionOf(row, responseTime, nowSec) {
@@ -524,8 +672,10 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
       if (!pos) { return; }
       var link = (typeof row.link === "string") ? row.link : ((typeof row.Link === "string") ? row.Link : "");
       var props = { link: link, idx: idx };
+      applyMarkerStyleToProps(row, props);
       if (hasDirection(row)) {
-        var d = row.direction;
+        var d = row.direction || row.Direction;
+        if (d && typeof d === "object") { d = cborMapToObject(d); }
         var bearing = bearingFromDirection(+d.x, +d.y);
         props.bearing = bearing;
         directedFeatures.push({
@@ -564,8 +714,10 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
       }
       var link = (typeof row.link === "string") ? row.link : ((typeof row.Link === "string") ? row.Link : "");
       var props = { link: link, idx: idx };
+      applyMarkerStyleToProps(row, props);
       if (hasDirection(row)) {
-        var d = row.direction;
+        var d = row.direction || row.Direction;
+        if (d && typeof d === "object") { d = cborMapToObject(d); }
         props.bearing = bearingFromDirection(+d.x, +d.y);
         buckets[lid].directed.features.push({
           type: "Feature",
@@ -589,14 +741,14 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     closePopup();
     clearLayerEvents();
     dynamicIds.forEach(function (x) {
-      [x.layDS, x.layCP, x.layCC].forEach(function (id) {
+      [x.layDS, x.layCPI, x.layCP, x.layCC].forEach(function (id) {
         if (id && map.getLayer(id)) { map.removeLayer(id); }
       });
       if (x.srcD && map.getSource(x.srcD)) { map.removeSource(x.srcD); }
       if (x.srcC && map.getSource(x.srcC)) { map.removeSource(x.srcC); }
     });
     dynamicIds = [];
-    [layDS, layCP, layCC].forEach(function (id) {
+    [layDS, layCPI, layCP, layCC].forEach(function (id) {
       if (map.getLayer(id)) { map.removeLayer(id); }
     });
     if (map.getSource(srcD)) { map.removeSource(srcD); }
@@ -771,7 +923,8 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
       var both = buckets[k];
       var hc = both.clustered.features.length > 0 ? 1 : 0;
       var hd = both.directed.features.length > 0 ? 1 : 0;
-      return k + ":" + hc + hd;
+      var hi = (hc && clusteredHasIconFeatures(both.clustered)) ? 1 : 0;
+      return k + ":" + hc + hd + hi;
     }).join("|");
   }
 
@@ -779,7 +932,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     var v = vis ? "visible" : "none";
     dynamicIds.forEach(function (x) {
       if (x.lid !== lid) { return; }
-      [x.layCC, x.layCP, x.layDS].forEach(function (id) {
+      [x.layCC, x.layCPI, x.layCP, x.layDS].forEach(function (id) {
         if (id && map.getLayer(id)) {
           try { map.setLayoutProperty(id, "visibility", v); } catch (eV) {}
         }
@@ -838,13 +991,26 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   function installFromState() {
     removeDynamicLayers();
     stopTick();
-    var nowSec = Date.now() / 1000;
-    var useLayers = itemsUseLayers(rawItems);
-    currentLayerMode = useLayers;
+    if (!rawItems || !rawItems.length) {
+      lastLayerSig = "";
+      currentLayerMode = false;
+      return;
+    }
+    var urls = collectMarkerIconURLs(rawItems);
+    preloadMarkerIcons(urls, function () {
+      ensureDirectedArrowsFromItems();
+      installFromStateImpl();
+    });
+  }
+
+  function installFromStateImpl() {
     if (!rawItems || !rawItems.length) {
       lastLayerSig = "";
       return;
     }
+    var nowSec = Date.now() / 1000;
+    var useLayers = itemsUseLayers(rawItems);
+    currentLayerMode = useLayers;
     if (useLayers) {
       var buckets = buildLayerBuckets(nowSec);
       var bucketKeys = Object.keys(buckets).filter(function (k) {
@@ -863,8 +1029,9 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
         var srcDt = "md-" + suffix + "-L-" + lid + "-d-src";
         var layCCt = "md-" + suffix + "-L-" + lid + "-c-clusters";
         var layCPt = "md-" + suffix + "-L-" + lid + "-c-points";
+        var layCPIt = "md-" + suffix + "-L-" + lid + "-c-icons";
         var layDSt = "md-" + suffix + "-L-" + lid + "-d-sym";
-        var entry = { lid: lid, srcC: srcCt, srcD: srcDt, layCC: layCCt, layCP: layCPt, layDS: layDSt };
+        var entry = { lid: lid, srcC: srcCt, srcD: srcDt, layCC: layCCt, layCP: layCPt, layCPI: null, layDS: layDSt };
         if (both.clustered.features.length) {
           map.addSource(srcCt, {
             type: "geojson",
@@ -894,14 +1061,29 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
             id: layCPt,
             type: "circle",
             source: srcCt,
-            filter: ["!", ["has", "point_count"]],
+            filter: ["all", ["!", ["has", "point_count"]], ["!", ["has", "mdIconImgId"]]],
             paint: {
-              "circle-color": "#60a5fa",
+              "circle-color": ["coalesce", ["get", "mdColor"], "#60a5fa"],
               "circle-radius": 10,
               "circle-stroke-width": 2,
               "circle-stroke-color": "#ffffff"
             }
           });
+          if (clusteredHasIconFeatures(both.clustered)) {
+            map.addLayer({
+              id: layCPIt,
+              type: "symbol",
+              source: srcCt,
+              filter: ["all", ["!", ["has", "point_count"]], ["has", "mdIconImgId"]],
+              layout: {
+                "icon-image": ["get", "mdIconImgId"],
+                "icon-size": 0.5,
+                "icon-allow-overlap": true,
+                "icon-ignore-placement": true
+              }
+            });
+            entry.layCPI = layCPIt;
+          }
         }
         if (both.directed.features.length) {
           anyDirected = true;
@@ -913,7 +1095,14 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
             type: "symbol",
             source: srcDt,
             layout: {
-              "icon-image": imgArrow,
+              "icon-image": [
+                "case",
+                ["all", ["has", "mdIconImgId"], ["!=", ["get", "mdIconImgId"], ""]],
+                ["get", "mdIconImgId"],
+                ["all", ["has", "arrowImg"], ["!=", ["get", "arrowImg"], ""]],
+                ["get", "arrowImg"],
+                imgArrow
+              ],
               "icon-size": 0.5,
               "icon-allow-overlap": true,
               "icon-ignore-placement": true,
@@ -925,7 +1114,8 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
         if (both.clustered.features.length) {
           entry.hUP = function (e) {
             closePopup();
-            var feats = map.queryRenderedFeatures(e.point, { layers: [layCPt] });
+            var ls = entry.layCPI ? [layCPt, entry.layCPI] : [layCPt];
+            var feats = map.queryRenderedFeatures(e.point, { layers: ls });
             if (!feats.length) { return; }
             onMarkerClick(feats[0].properties || {});
           };
@@ -933,6 +1123,11 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
           map.on("click", layCPt, entry.hUP);
           map.on("mouseenter", layCPt, pointerCursor);
           map.on("mouseleave", layCPt, defaultCursor);
+          if (entry.layCPI) {
+            map.on("click", entry.layCPI, entry.hUP);
+            map.on("mouseenter", entry.layCPI, pointerCursor);
+            map.on("mouseleave", entry.layCPI, defaultCursor);
+          }
           map.on("click", layCCt, entry.hCC);
           map.on("mouseenter", layCCt, pointerCursor);
           map.on("mouseleave", layCCt, defaultCursor);
@@ -996,14 +1191,28 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
         id: layCP,
         type: "circle",
         source: srcC,
-        filter: ["!", ["has", "point_count"]],
+        filter: ["all", ["!", ["has", "point_count"]], ["!", ["has", "mdIconImgId"]]],
         paint: {
-          "circle-color": "#60a5fa",
+          "circle-color": ["coalesce", ["get", "mdColor"], "#60a5fa"],
           "circle-radius": 10,
           "circle-stroke-width": 2,
           "circle-stroke-color": "#ffffff"
         }
       });
+      if (clusteredHasIconFeatures(both.clustered)) {
+        map.addLayer({
+          id: layCPI,
+          type: "symbol",
+          source: srcC,
+          filter: ["all", ["!", ["has", "point_count"]], ["has", "mdIconImgId"]],
+          layout: {
+            "icon-image": ["get", "mdIconImgId"],
+            "icon-size": 0.5,
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true
+          }
+        });
+      }
     }
     if (both.directed.features.length) {
       addArrowImage();
@@ -1014,7 +1223,14 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
         type: "symbol",
         source: srcD,
         layout: {
-          "icon-image": imgArrow,
+          "icon-image": [
+            "case",
+            ["all", ["has", "mdIconImgId"], ["!=", ["get", "mdIconImgId"], ""]],
+            ["get", "mdIconImgId"],
+            ["all", ["has", "arrowImg"], ["!=", ["get", "arrowImg"], ""]],
+            ["get", "arrowImg"],
+            imgArrow
+          ],
           "icon-size": 0.5,
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
@@ -1040,7 +1256,8 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
 
   function onUndirectedPointClick(e) {
     closePopup();
-    var feats = map.queryRenderedFeatures(e.point, { layers: [layCP] });
+    var ls = map.getLayer(layCPI) ? [layCP, layCPI] : [layCP];
+    var feats = map.queryRenderedFeatures(e.point, { layers: ls });
     if (!feats.length) { return; }
     onMarkerClick(feats[0].properties || {});
   }
@@ -1101,6 +1318,11 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
       map.on("mouseenter", layCP, pointerCursor);
       map.on("mouseleave", layCP, defaultCursor);
     }
+    if (map.getLayer(layCPI)) {
+      map.on("click", layCPI, onUndirectedPointClick);
+      map.on("mouseenter", layCPI, pointerCursor);
+      map.on("mouseleave", layCPI, defaultCursor);
+    }
     if (map.getLayer(layDS)) {
       map.on("click", layDS, onDirectedClick);
       map.on("mouseenter", layDS, pointerCursor);
@@ -1116,20 +1338,29 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   function applyPayload(arr) {
     rawItems = normalizeDecodedRows(Array.isArray(arr) ? arr : []);
     lastResponseTime = Date.now() / 1000;
-    var nowSec = Date.now() / 1000;
     var nextLM = itemsUseLayers(rawItems);
     if (nextLM !== currentLayerMode) {
       installFromState();
       return;
     }
     currentLayerMode = nextLM;
+    preloadMarkerIcons(collectMarkerIconURLs(rawItems), function () {
+      applyPayloadAfterIcons();
+    });
+  }
+
+  function applyPayloadAfterIcons() {
+    ensureDirectedArrowsFromItems();
+    var nowSec = Date.now() / 1000;
     if (!currentLayerMode) {
       var both = buildSplit(nowSec);
       var hasC = both.clustered.features.length > 0;
       var hasD = both.directed.features.length > 0;
       var srcHasC = !!map.getSource(srcC);
       var srcHasD = !!map.getSource(srcD);
-      var needsRebuild = (hasC !== srcHasC) || (hasD !== srcHasD);
+      var wantIconLayer = hasC && clusteredHasIconFeatures(both.clustered);
+      var mapHasIconLayer = !!map.getLayer(layCPI);
+      var needsRebuild = (hasC !== srcHasC) || (hasD !== srcHasD) || (wantIconLayer !== mapHasIconLayer);
       if (needsRebuild) {
         installFromState();
         return;
