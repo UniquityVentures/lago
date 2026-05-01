@@ -22,8 +22,7 @@ func TestClientTabsBuild(t *testing.T) {
 
 	for _, want := range []string{
 		`x-data="{&#34;section&#34;:&#34;Reports&#34;}"`,
-		`md:flex-row`,
-		`md:flex-col`, // ribbon: row on narrow, column from md (responsive layout)
+		`md:flex-col`, // ribbon: row on narrow, stacked tabs from md; content always below ribbon
 		`section === &#34;Reports&#34;`,
 		`section === &#34;Intel&#34;`,
 		`btn-primary`,
@@ -49,8 +48,11 @@ func TestClientTabsLayoutVertical(t *testing.T) {
 		},
 	}
 	html := renderNode(t, tabs.Build(context.Background()))
-	if !strings.Contains(html, `w-full flex-col`) || !strings.Contains(html, `md:w-56`) {
+	if !strings.Contains(html, `w-full flex-col`) {
 		t.Fatalf("expected vertical ribbon classes in html: %s", html)
+	}
+	if strings.Contains(html, `sm:flex-row`) || strings.Contains(html, `md:flex-row`) {
+		t.Fatalf("vertical layout should keep content under tabs (no side-by-side flex-row): %s", html)
 	}
 	if strings.Contains(html, `md:flex-col`) {
 		t.Fatalf("vertical layout should not use md:flex-col on ribbon (already column): %s", html)

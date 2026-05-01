@@ -11,13 +11,13 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// ClientTabsLayout controls tab ribbon orientation and how it sits next to content.
+// ClientTabsLayout controls tab ribbon orientation; content is always below the ribbon (column stack).
 type ClientTabsLayout uint8
 
 const (
-	// ClientTabsLayoutResponsive: narrow view uses a horizontal ribbon; md+ uses a vertical left ribbon (default).
+	// ClientTabsLayoutResponsive: narrow view uses a horizontal tab row; md+ stacks tab buttons vertically (default).
 	ClientTabsLayoutResponsive ClientTabsLayout = 0
-	// ClientTabsLayoutVertical: tab buttons are always stacked vertically; ribbon stays left of content from md+.
+	// ClientTabsLayoutVertical: tab buttons are stacked vertically; ribbon is above the panel content (column layout).
 	ClientTabsLayoutVertical ClientTabsLayout = 1
 	// ClientTabsLayoutHorizontal: tab buttons stay in a horizontal row (wrap on narrow widths).
 	ClientTabsLayoutHorizontal ClientTabsLayout = 2
@@ -39,16 +39,18 @@ type ClientTabs struct {
 func (e ClientTabs) layoutClasses() (outer, ribbon, button string) {
 	switch e.Layout {
 	case ClientTabsLayoutVertical:
-		return "flex flex-col gap-4 md:flex-row md:items-start",
-			"flex w-full flex-col gap-1 rounded-box border border-base-300 bg-base-100 p-1 md:sticky md:top-2 md:w-56 shrink-0",
-			"btn w-full justify-center md:justify-start"
+		// Stacked tab buttons; content is always below the ribbon (never beside).
+		return "flex flex-col gap-4",
+			"flex w-full flex-col gap-1 rounded-box border border-base-300 bg-base-100 p-1",
+			"btn w-full justify-start"
 	case ClientTabsLayoutHorizontal:
 		return "flex flex-col gap-4",
 			"flex w-full flex-row flex-wrap gap-1 rounded-box border border-base-300 bg-base-100 p-1",
 			"btn flex-1 min-w-[5rem] justify-center"
 	default:
-		return "flex flex-col gap-4 md:flex-row md:items-start",
-			"flex w-full flex-row gap-1 rounded-box border border-base-300 bg-base-100 p-1 md:sticky md:top-2 md:w-56 md:flex-col",
+		// Same column stack as other layouts; only the ribbon’s flex direction changes at md.
+		return "flex flex-col gap-4",
+			"flex w-full flex-row gap-1 rounded-box border border-base-300 bg-base-100 p-1 md:flex-col",
 			"btn flex-1 md:flex-none md:w-full justify-center md:justify-start"
 	}
 }
