@@ -333,6 +333,10 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   var tickTimer = 0;
   var animationTickMS = 200;
   var didFit = !!skipAutoFitBounds;
+  var mapIconRasterGen = 0;
+  function bumpMapIconRasterGen() {
+    mapIconRasterGen++;
+  }
 
   function pointerCursor() {
     map.getCanvas().style.cursor = "pointer";
@@ -563,11 +567,91 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     return out;
   }
 
+  function cloneImageData(src) {
+    if (!src || !src.data) { return null; }
+    try {
+      var copy = new Uint8ClampedArray(src.data);
+      return new ImageData(copy, src.width, src.height);
+    } catch (eCl) {
+      return null;
+    }
+  }
+
+  function rasterizeImageForMapIcon(image) {
+    if (!image) { return null; }
+    if (image.data && typeof image.width === "number" && typeof image.height === "number") {
+      return cloneImageData(image) || image;
+    }
+    var ow = image.width;
+    var oh = image.height;
+    if (!ow || !oh || !isFinite(ow) || !isFinite(oh)) { return null; }
+    var maxPx = 256;
+    var w = ow;
+    var h = oh;
+    if (w > maxPx || h > maxPx) {
+      var scale = Math.min(maxPx / w, maxPx / h, 1);
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+    }
+    var c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    var x = c.getContext("2d");
+    if (!x) { return null; }
+    try {
+      x.drawImage(image, 0, 0, w, h);
+    } catch (eDraw) {
+      return null;
+    }
+    try {
+      var raw = x.getImageData(0, 0, w, h);
+      return cloneImageData(raw) || raw;
+    } catch (eGid) {
+      return null;
+    }
+  }
+
+  function iconURLIsCrossOrigin(url) {
+    try {
+      var u = new URL(url, window.location.href);
+      return u.origin !== window.location.origin;
+    } catch (e0) {
+      return false;
+    }
+  }
+
+  function loadIconRasterImage(url, cb) {
+    var img = new Image();
+    if (iconURLIsCrossOrigin(url)) {
+      img.crossOrigin = "anonymous";
+    }
+    var done = false;
+    function finish(err, im) {
+      if (done) { return; }
+      done = true;
+      try {
+        cb(err, im);
+      } catch (eCb) {}
+    }
+    img.onload = function () {
+      finish(null, img);
+    };
+    img.onerror = function () {
+      finish(new Error("icon load failed"), null);
+    };
+    try {
+      img.src = url;
+    } catch (eSrc) {
+      finish(eSrc, null);
+    }
+  }
+
   function preloadMarkerIcons(urls, done) {
     if (!map || !urls || !urls.length) {
       if (typeof done === "function") { done(); }
       return;
     }
+    var snap = mapIconRasterGen;
     var left = urls.length;
     function step() {
       left--;
@@ -576,15 +660,26 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     urls.forEach(function (url) {
       var id = markerIconImageId(url);
       if (map.hasImage && map.hasImage(id)) { step(); return; }
-      if (typeof map.loadImage !== "function") { step(); return; }
-      map.loadImage(url, function (err, image) {
-        if (!err && image) {
-          try {
-            if (map.hasImage && map.hasImage(id) && map.removeImage) {
-              try { map.removeImage(id); } catch (eRmI) {}
-            }
-          } catch (eRmI2) {}
-          try { map.addImage(id, image); } catch (eAdI) {}
+      loadIconRasterImage(url, function (err, image) {
+        if (!map || snap !== mapIconRasterGen) { step(); return; }
+        if (map.hasImage && map.hasImage(id)) { step(); return; }
+        if (err || !image) { step(); return; }
+        var idata = null;
+        try {
+          idata = rasterizeImageForMapIcon(image);
+        } catch (eRas) {
+          idata = null;
+        }
+        if (!idata) { step(); return; }
+        try {
+          if (map.hasImage && map.hasImage(id) && map.removeImage) {
+            try { map.removeImage(id); } catch (eRmI) {}
+          }
+        } catch (eRmI2) {}
+        try {
+          map.addImage(id, idata, { pixelRatio: 1 });
+        } catch (eAdI) {
+          try { map.addImage(id, idata); } catch (eAdI2) {}
         }
         step();
       });
@@ -1607,6 +1702,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   function syncStyle() {
     var d = themeIsDark();
     if (d === lastDark) { return; }
+    bumpMapIconRasterGen();
     lastDark = d;
     map.setStyle(d ? styleDark : styleLight);
     map.once("idle", function () {
