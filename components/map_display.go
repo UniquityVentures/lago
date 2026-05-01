@@ -325,7 +325,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   var layerToggleControlInstance = null;
 
   var popupOpen = null;
-  function closePopup() {Uncaught (in promise) DOMException: An attempt was made to use an object that is not, or is no longer, usable
+  function closePopup() {
     if (popupOpen) { popupOpen.remove(); popupOpen = null; }
   }
 
