@@ -23,7 +23,7 @@ func TestClientTabsBuild(t *testing.T) {
 	for _, want := range []string{
 		`x-data="{&#34;section&#34;:&#34;Reports&#34;}"`,
 		`md:flex-row`,
-		`md:flex-col`,
+		`md:flex-col`, // ribbon: row on narrow, column from md (responsive layout)
 		`section === &#34;Reports&#34;`,
 		`section === &#34;Intel&#34;`,
 		`btn-primary`,
@@ -36,5 +36,37 @@ func TestClientTabsBuild(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Fatalf("expected %q in html: %s", want, html)
 		}
+	}
+}
+
+func TestClientTabsLayoutVertical(t *testing.T) {
+	tabs := ClientTabs{
+		StateKey: "section",
+		Layout:   ClientTabsLayoutVertical,
+		Tabs: map[string]getters.Getter[PageInterface]{
+			"A": getters.Static[PageInterface](FieldText{Getter: getters.Static("a")}),
+			"B": getters.Static[PageInterface](FieldText{Getter: getters.Static("b")}),
+		},
+	}
+	html := renderNode(t, tabs.Build(context.Background()))
+	if !strings.Contains(html, `w-full flex-col`) || !strings.Contains(html, `md:w-56`) {
+		t.Fatalf("expected vertical ribbon classes in html: %s", html)
+	}
+	if strings.Contains(html, `md:flex-col`) {
+		t.Fatalf("vertical layout should not use md:flex-col on ribbon (already column): %s", html)
+	}
+}
+
+func TestClientTabsLayoutHorizontal(t *testing.T) {
+	tabs := ClientTabs{
+		StateKey: "section",
+		Layout:   ClientTabsLayoutHorizontal,
+		Tabs: map[string]getters.Getter[PageInterface]{
+			"A": getters.Static[PageInterface](FieldText{Getter: getters.Static("a")}),
+		},
+	}
+	html := renderNode(t, tabs.Build(context.Background()))
+	if !strings.Contains(html, `flex-wrap`) {
+		t.Fatalf("expected horizontal ribbon with flex-wrap: %s", html)
 	}
 }
