@@ -88,6 +88,8 @@ func mapDisplayIDSuffix(pageKey string) string {
 //     circle fill; directed markers tint the arrow when no custom icon is set.
 //   - icon (optional): URL for a raster image (http(s), //, site-relative /..., or data:image/...).
 //     Loaded into the map style and drawn for that marker (undirected: symbol; directed: rotated symbol).
+//   - iconSize (optional): number; MapLibre symbol icon-size scale for that marker (typical range ~0.02–1.5).
+//     Omitted markers use [MapDisplay.MarkerIconSizeDefault] from the embedding page (see field doc).
 //
 // Extrapolated coordinates (seconds): responseTime = wall clock when a message was parsed;
 // tRef = time ?? responseTime; lng = position.lng + max(0, now - tRef) * (velocity?.x ?? 0);
@@ -123,6 +125,9 @@ type MapDisplay struct {
 	// positions the viewport (e.g. region picker + flyTo) so incoming worldwide points
 	// do not pull the camera back out.
 	SkipAutoFitBounds getters.Getter[bool]
+	// MarkerIconSizeDefault, if non-nil, is the MapLibre icon-size scale used when a marker
+	// payload omits iconSize (typical range ~0.02–1.5). Values are clamped; nil uses 0.32.
+	MarkerIconSizeDefault getters.Getter[float64]
 }
 
 func (e *MapDisplay) GetKey() string     { return e.Key }
@@ -189,6 +194,25 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
 		skipAutoFitBounds = v
 	}
 
+	markerIconSizeDefault := 0.32
+	if e.MarkerIconSizeDefault != nil {
+		v, err := e.MarkerIconSizeDefault(ctx)
+		if err != nil {
+			slog.Error("MapDisplay MarkerIconSizeDefault getter failed", "error", err, "key", e.Key)
+			return ContainerError{
+				Page:  Page{Key: e.Key + ".err"},
+				Error: getters.Static(err),
+			}.Build(ctx)
+		}
+		markerIconSizeDefault = v
+	}
+	if markerIconSizeDefault < 0.02 {
+		markerIconSizeDefault = 0.02
+	}
+	if markerIconSizeDefault > 2 {
+		markerIconSizeDefault = 2
+	}
+
 	suffix := mapDisplayIDSuffix(e.Key)
 	mapElID := "mapdisplay-" + suffix + "-map"
 	dataURLBytes, _ := json.Marshal(dataURL)
@@ -196,6 +220,7 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
 	suffixBytes, _ := json.Marshal(suffix)
 	deferStartBytes, _ := json.Marshal(deferStart)
 	skipAutoFitBoundsBytes, _ := json.Marshal(skipAutoFitBounds)
+	markerIconSizeDefaultBytes, _ := json.Marshal(markerIconSizeDefault)
 
 	classes := strings.TrimSpace(e.Classes)
 	if classes == "" {
@@ -281,6 +306,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   var refreshMS = ` + string(refreshMSBytes) + `;
   var deferStart = ` + string(deferStartBytes) + `;
   var skipAutoFitBounds = ` + string(skipAutoFitBoundsBytes) + `;
+  var mapMarkerIconSizeDefault = ` + string(markerIconSizeDefaultBytes) + `;
   var mapElId = "mapdisplay-" + suffix + "-map";
 
   function mapDisplayRunInit() {
@@ -316,7 +342,6 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   var layCPI = "md-" + suffix + "-c-icons";
   var layDS = "md-" + suffix + "-d-sym";
   var imgArrow = "md-" + suffix + "-arrow";
-  var mapMarkerIconSize = 0.02;
 
   var currentLayerMode = false;
   var dynamicIds = [];
@@ -541,6 +566,27 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     return "md-" + suffix + "-mi-" + hashStr(resolvedURL);
   }
 
+  function clampMarkerIconSize(n) {
+    if (!isFinite(n)) { return mapMarkerIconSizeDefault; }
+    if (n < 0.02) { return 0.02; }
+    if (n > 2) { return 2; }
+    return n;
+  }
+
+  function rowIconSize(row) {
+    if (!row || typeof row !== "object") { return NaN; }
+    var keys = ["iconSize", "IconSize", "icon_size", "Icon_Size"];
+    for (var ki = 0; ki < keys.length; ki++) {
+      var v = row[keys[ki]];
+      if (typeof v === "number" && isFinite(v)) { return clampMarkerIconSize(v); }
+      if (typeof v === "string" && v.trim()) {
+        var n = parseFloat(v.trim());
+        if (isFinite(n)) { return clampMarkerIconSize(n); }
+      }
+    }
+    return NaN;
+  }
+
   function applyMarkerStyleToProps(row, props) {
     var cStr = rowColorString(row);
     if (cStr) { props.mdColor = cStr; }
@@ -549,6 +595,8 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
       var abs = resolveIconURL(icRaw);
       if (abs) { props.mdIconImgId = markerIconImageId(abs); }
     }
+    var isz = rowIconSize(row);
+    if (isFinite(isz)) { props.mdIconSize = isz; }
     if (hasDirection(row) && !props.mdIconImgId && cStr) {
       props.arrowImg = imgArrow + "-c-" + hashStr(cStr);
     }
@@ -1173,7 +1221,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
               filter: ["all", ["!", ["has", "point_count"]], ["has", "mdIconImgId"]],
               layout: {
                 "icon-image": ["get", "mdIconImgId"],
-                "icon-size": mapMarkerIconSize,
+                "icon-size": ["coalesce", ["get", "mdIconSize"], mapMarkerIconSizeDefault],
                 "icon-allow-overlap": true,
                 "icon-ignore-placement": true
               }
@@ -1199,7 +1247,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
                 ["get", "arrowImg"],
                 imgArrow
               ],
-              "icon-size": mapMarkerIconSize,
+              "icon-size": ["coalesce", ["get", "mdIconSize"], mapMarkerIconSizeDefault],
               "icon-allow-overlap": true,
               "icon-ignore-placement": true,
               "icon-rotate": ["get", "bearing"],
@@ -1303,7 +1351,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
           filter: ["all", ["!", ["has", "point_count"]], ["has", "mdIconImgId"]],
           layout: {
             "icon-image": ["get", "mdIconImgId"],
-            "icon-size": mapMarkerIconSize,
+            "icon-size": ["coalesce", ["get", "mdIconSize"], mapMarkerIconSizeDefault],
             "icon-allow-overlap": true,
             "icon-ignore-placement": true
           }
@@ -1327,7 +1375,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
             ["get", "arrowImg"],
             imgArrow
           ],
-          "icon-size": mapMarkerIconSize,
+          "icon-size": ["coalesce", ["get", "mdIconSize"], mapMarkerIconSizeDefault],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
           "icon-rotate": ["get", "bearing"],
