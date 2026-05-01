@@ -316,7 +316,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   var layCPI = "md-" + suffix + "-c-icons";
   var layDS = "md-" + suffix + "-d-sym";
   var imgArrow = "md-" + suffix + "-arrow";
-  var mapMarkerIconSize = 0.32;
+  var mapMarkerIconSize = 0.02;
 
   var currentLayerMode = false;
   var dynamicIds = [];
