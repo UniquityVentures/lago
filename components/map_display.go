@@ -79,6 +79,11 @@ func mapDisplayIDSuffix(pageKey string) string {
 //   - time (optional): Unix timestamp in seconds for position; if omitted, the message
 //     receive time is used as the reference time.
 //   - link (optional): if non-empty, clicking the marker navigates the page to this URL.
+//   - layer (optional): non-empty string groups markers into separate MapLibre sources with
+//     per-layer visibility toggles. If any marker in a payload has a non-empty layer, the map
+//     enters layered mode; markers without layer use logical id "_". Legacy single-cluster
+//     behavior applies when no marker has layer set. In layered mode, toggles are implemented
+//     as a MapLibre IControl (maplibregl-ctrl-group) on the map, not as separate page chrome.
 //
 // Extrapolated coordinates (seconds): responseTime = wall clock when a message was parsed;
 // tRef = time ?? responseTime; lng = position.lng + max(0, now - tRef) * (velocity?.x ?? 0);
@@ -95,6 +100,25 @@ type MapDisplay struct {
 	RefreshMS getters.Getter[int64]
 	// Classes for the map container div (width/height). Empty uses a default tall map box.
 	Classes string
+	// DeferStart, when true, prevents MapDisplay from automatically opening its WebSocket
+	// when the MapLibre map finishes loading. Wrapper components can drive the lifecycle
+	// via the per-instance JS API exposed at window["mapDisplay_<suffix>"], which has:
+	//
+	//   start():                       open the WebSocket (idempotent on subsequent calls)
+	//   flyTo(lng, lat, zoom):         animate the map to the given center/zoom
+	//   unproject(x, y) -> {lng, lat}: convert container-relative pixel coordinates
+	//   isReady() -> bool:             true once the map has fired its "load" event
+	//
+	// The map element id is deterministic: "mapdisplay-<suffix>-map", where <suffix> is
+	// derived from this component's Page.Key. A "mapDisplayReady" CustomEvent is dispatched
+	// on document with detail.suffix once the map has loaded so wrappers can subscribe
+	// without polling.
+	DeferStart getters.Getter[bool]
+	// SkipAutoFitBounds, when true, disables the automatic fitBounds on first marker
+	// payloads (and after theme style reload). Use when the embedding page already
+	// positions the viewport (e.g. region picker + flyTo) so incoming worldwide points
+	// do not pull the camera back out.
+	SkipAutoFitBounds getters.Getter[bool]
 }
 
 func (e *MapDisplay) GetKey() string     { return e.Key }
@@ -135,24 +159,135 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
 		refreshMS = v
 	}
 
+	deferStart := false
+	if e.DeferStart != nil {
+		v, err := e.DeferStart(ctx)
+		if err != nil {
+			slog.Error("MapDisplay DeferStart getter failed", "error", err, "key", e.Key)
+			return ContainerError{
+				Page:  Page{Key: e.Key + ".err"},
+				Error: getters.Static(err),
+			}.Build(ctx)
+		}
+		deferStart = v
+	}
+
+	skipAutoFitBounds := false
+	if e.SkipAutoFitBounds != nil {
+		v, err := e.SkipAutoFitBounds(ctx)
+		if err != nil {
+			slog.Error("MapDisplay SkipAutoFitBounds getter failed", "error", err, "key", e.Key)
+			return ContainerError{
+				Page:  Page{Key: e.Key + ".err"},
+				Error: getters.Static(err),
+			}.Build(ctx)
+		}
+		skipAutoFitBounds = v
+	}
+
 	suffix := mapDisplayIDSuffix(e.Key)
 	mapElID := "mapdisplay-" + suffix + "-map"
 	dataURLBytes, _ := json.Marshal(dataURL)
 	refreshMSBytes, _ := json.Marshal(refreshMS)
 	suffixBytes, _ := json.Marshal(suffix)
+	deferStartBytes, _ := json.Marshal(deferStart)
+	skipAutoFitBoundsBytes, _ := json.Marshal(skipAutoFitBounds)
 
 	classes := strings.TrimSpace(e.Classes)
 	if classes == "" {
-		classes = "w-full h-[min(80vh,720px)] min-h-80 rounded-box border border-base-300 z-0"
+		classes = "w-full h-[min(80vh,720px)] min-h-80 rounded-box border border-base-300 relative z-[1]"
 	}
+
+	mapCtrlCSS := "#" + mapElID + `.maplibregl-map .maplibregl-control-container {
+  z-index: 11 !important;
+  pointer-events: none !important;
+}
+#` + mapElID + `.maplibregl-map .maplibregl-ctrl-top-left,
+#` + mapElID + `.maplibregl-map .maplibregl-ctrl-top-right {
+  z-index: 12 !important;
+  pointer-events: auto !important;
+}
+#` + mapElID + `.maplibregl-map .maplibregl-ctrl,
+#` + mapElID + `.maplibregl-map .maplibregl-ctrl-group,
+#` + mapElID + `.maplibregl-map .maplibregl-ctrl-group button {
+  pointer-events: auto !important;
+}
+#` + mapElID + `.maplibregl-map .maplibregl-ctrl-group button {
+  min-width: 29px !important;
+  min-height: 29px !important;
+  box-sizing: border-box !important;
+}
+#` + mapElID + `.maplibregl-map .maplibregl-ctrl span {
+  max-width: none !important;
+}
+#` + mapElID + `.maplibregl-map .mapdisplay-layer-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  max-height: min(50vh, 320px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+#` + mapElID + `.maplibregl-map .mapdisplay-layer-toolbar button.mapdisplay-layer-toggle-btn {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100%;
+  height: auto !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  font-weight: 500;
+  white-space: normal !important;
+  word-break: break-word !important;
+  border-radius: 6px !important;
+  text-align: center;
+  color: #0f172a;
+  background: rgba(241, 245, 249, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+#` + mapElID + `.maplibregl-map .mapdisplay-layer-toolbar button.mapdisplay-layer-toggle-btn.maplibregl-ctrl-active {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.45) !important;
+  color: #0f172a;
+}
+body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolbar {
+  background: rgba(30, 41, 59, 0.96);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolbar button.mapdisplay-layer-toggle-btn {
+  color: #e2e8f0;
+  background: rgba(51, 65, 85, 0.6);
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolbar button.mapdisplay-layer-toggle-btn.maplibregl-ctrl-active {
+  background: rgba(59, 130, 246, 0.35);
+  border-color: rgba(96, 165, 250, 0.55) !important;
+  color: #f8fafc;
+}
+`
 
 	initJS := `(function(){
   var suffix = ` + string(suffixBytes) + `;
   var dataURL = ` + string(dataURLBytes) + `;
   var refreshMS = ` + string(refreshMSBytes) + `;
+  var deferStart = ` + string(deferStartBytes) + `;
+  var skipAutoFitBounds = ` + string(skipAutoFitBoundsBytes) + `;
   var mapElId = "mapdisplay-" + suffix + "-map";
+
+  function mapDisplayRunInit() {
   var mapEl = document.getElementById(mapElId);
-  if (!mapEl || typeof maplibregl === "undefined") { return; }
+  if (!mapEl) { return; }
+  if (typeof maplibregl === "undefined") {
+    mapDisplayRunInit._n = (mapDisplayRunInit._n || 0) + 1;
+    if (mapDisplayRunInit._n > 120) { return; }
+    setTimeout(mapDisplayRunInit, 50);
+    return;
+  }
   var styleLight = "https://demotiles.maplibre.org/style.json";
   var styleDark = "https://tiles.openfreemap.org/styles/dark";
   function themeIsDark() {
@@ -169,7 +304,6 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
     center: [0, 20],
     zoom: 1.5
   });
-  map.addControl(new maplibregl.NavigationControl(), "top-right");
 
   var srcC = "md-" + suffix + "-c-src";
   var srcD = "md-" + suffix + "-d-src";
@@ -177,6 +311,12 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
   var layCP = "md-" + suffix + "-c-points";
   var layDS = "md-" + suffix + "-d-sym";
   var imgArrow = "md-" + suffix + "-arrow";
+
+  var currentLayerMode = false;
+  var dynamicIds = [];
+  var lastLayerSig = "";
+  var layerVisibility = {};
+  var layerToggleControlInstance = null;
 
   var popupOpen = null;
   function closePopup() {
@@ -187,7 +327,7 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
   var lastResponseTime = 0;
   var tickTimer = 0;
   var animationTickMS = 200;
-  var didFit = false;
+  var didFit = !!skipAutoFitBounds;
 
   function pointerCursor() {
     map.getCanvas().style.cursor = "pointer";
@@ -214,6 +354,25 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
         map.off("mouseleave", layCC, defaultCursor);
       }
     } catch (e8) {}
+    dynamicIds.forEach(function (x) {
+      try {
+        if (x.layCP && map.getLayer(x.layCP) && x.hUP) {
+          map.off("click", x.layCP, x.hUP);
+          map.off("mouseenter", x.layCP, pointerCursor);
+          map.off("mouseleave", x.layCP, defaultCursor);
+        }
+        if (x.layDS && map.getLayer(x.layDS) && x.hDS) {
+          map.off("click", x.layDS, x.hDS);
+          map.off("mouseenter", x.layDS, pointerCursor);
+          map.off("mouseleave", x.layDS, defaultCursor);
+        }
+        if (x.layCC && map.getLayer(x.layCC) && x.hCC) {
+          map.off("click", x.layCC, x.hCC);
+          map.off("mouseenter", x.layCC, pointerCursor);
+          map.off("mouseleave", x.layCC, defaultCursor);
+        }
+      } catch (e9) {}
+    });
   }
 
   function bearingFromDirection(dx, dy) {
@@ -251,37 +410,109 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
     }
   }
 
+  function cborMapToObject(v) {
+    if (!v || typeof v !== "object") { return v; }
+    if (typeof Map !== "undefined" && v instanceof Map) {
+      var o = {};
+      v.forEach(function (val, key) {
+        var ks = (typeof key === "string") ? key : String(key);
+        o[ks] = val;
+      });
+      return o;
+    }
+    return v;
+  }
+
+  function normalizeDecodedRows(arr) {
+    if (!Array.isArray(arr)) { return []; }
+    return arr.map(function (row) {
+      row = cborMapToObject(row);
+      if (!row || typeof row !== "object") { return row; }
+      row.position = cborMapToObject(row.position);
+      row.direction = cborMapToObject(row.direction);
+      row.velocity = cborMapToObject(row.velocity);
+      return row;
+    });
+  }
+
   function rowTRef(row, responseTime) {
     var t = row.time;
+    if (typeof t !== "number" || !isFinite(t)) {
+      t = row.Time;
+    }
     if (typeof t === "number" && isFinite(t)) { return t; }
     return responseTime;
   }
 
   function rowVelocity(row) {
-    var v = row.velocity;
+    var v = row.velocity || row.Velocity;
     if (!v || typeof v !== "object") { return { x: 0, y: 0 }; }
-    var vx = +v.x, vy = +v.y;
+    v = cborMapToObject(v);
+    var vx = v.x !== undefined ? +v.x : +v.X;
+    var vy = v.y !== undefined ? +v.y : +v.Y;
     if (!isFinite(vx)) { vx = 0; }
     if (!isFinite(vy)) { vy = 0; }
     return { x: vx, y: vy };
   }
 
   function hasDirection(row) {
-    var d = row.direction;
+    var d = row.direction || row.Direction;
     if (!d || typeof d !== "object") { return false; }
-    var dx = +d.x, dy = +d.y;
+    d = cborMapToObject(d);
+    var dx = d.x !== undefined ? +d.x : +d.X;
+    var dy = d.y !== undefined ? +d.y : +d.Y;
     return isFinite(dx) && isFinite(dy) && (dx !== 0 || dy !== 0);
   }
 
   function positionOf(row, responseTime, nowSec) {
-    var p = row.position;
+    var p = row.position || row.Position;
     if (!p || typeof p !== "object") { return null; }
-    var lat = +p.lat, lng = +p.lng;
+    p = cborMapToObject(p);
+    var lat = p.lat !== undefined ? +p.lat : +p.Lat;
+    var lng = p.lng !== undefined ? +p.lng : +p.Lng;
     if (!isFinite(lat) || !isFinite(lng)) { return null; }
     var tRef = rowTRef(row, responseTime);
     var dt = Math.max(0, nowSec - tRef);
     var vel = rowVelocity(row);
     return { lng: lng + dt * vel.x, lat: lat + dt * vel.y };
+  }
+
+  function sanitizeLayerId(raw) {
+    var s = String(raw || "").trim();
+    if (!s) { return "_"; }
+    s = s.replace(/[^a-zA-Z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+    if (!s) { return "_"; }
+    if (s.length > 48) { s = s.substring(0, 48); }
+    return s;
+  }
+
+  function rowLayerString(row) {
+    if (!row || typeof row !== "object") { return ""; }
+    var L = row.layer;
+    if (typeof L === "string") {
+      L = L.trim();
+      if (L !== "") { return L; }
+    }
+    L = row.Layer;
+    if (typeof L === "string") {
+      L = L.trim();
+      if (L !== "") { return L; }
+    }
+    return "";
+  }
+
+  function itemsUseLayers(items) {
+    if (!items || !items.length) { return false; }
+    for (var i = 0; i < items.length; i++) {
+      if (rowLayerString(items[i]) !== "") { return true; }
+    }
+    return false;
+  }
+
+  function layerKeyForRow(row) {
+    var L = rowLayerString(row);
+    if (L.trim() !== "") { return sanitizeLayerId(L); }
+    return "_";
   }
 
   function buildSplit(nowSec) {
@@ -291,7 +522,7 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
     (rawItems || []).forEach(function (row, idx) {
       var pos = positionOf(row, responseTime, nowSec);
       if (!pos) { return; }
-      var link = (typeof row.link === "string") ? row.link : "";
+      var link = (typeof row.link === "string") ? row.link : ((typeof row.Link === "string") ? row.Link : "");
       var props = { link: link, idx: idx };
       if (hasDirection(row)) {
         var d = row.direction;
@@ -318,14 +549,145 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
     };
   }
 
+  function buildLayerBuckets(nowSec) {
+    var buckets = {};
+    var responseTime = lastResponseTime;
+    (rawItems || []).forEach(function (row, idx) {
+      var pos = positionOf(row, responseTime, nowSec);
+      if (!pos) { return; }
+      var lid = layerKeyForRow(row);
+      if (!buckets[lid]) {
+        buckets[lid] = {
+          clustered: { type: "FeatureCollection", features: [] },
+          directed: { type: "FeatureCollection", features: [] }
+        };
+      }
+      var link = (typeof row.link === "string") ? row.link : ((typeof row.Link === "string") ? row.Link : "");
+      var props = { link: link, idx: idx };
+      if (hasDirection(row)) {
+        var d = row.direction;
+        props.bearing = bearingFromDirection(+d.x, +d.y);
+        buckets[lid].directed.features.push({
+          type: "Feature",
+          id: "d-" + lid + "-" + idx,
+          geometry: { type: "Point", coordinates: [pos.lng, pos.lat] },
+          properties: props
+        });
+      } else {
+        buckets[lid].clustered.features.push({
+          type: "Feature",
+          id: "c-" + lid + "-" + idx,
+          geometry: { type: "Point", coordinates: [pos.lng, pos.lat] },
+          properties: props
+        });
+      }
+    });
+    return buckets;
+  }
+
   function removeDynamicLayers() {
     closePopup();
     clearLayerEvents();
+    dynamicIds.forEach(function (x) {
+      [x.layDS, x.layCP, x.layCC].forEach(function (id) {
+        if (id && map.getLayer(id)) { map.removeLayer(id); }
+      });
+      if (x.srcD && map.getSource(x.srcD)) { map.removeSource(x.srcD); }
+      if (x.srcC && map.getSource(x.srcC)) { map.removeSource(x.srcC); }
+    });
+    dynamicIds = [];
     [layDS, layCP, layCC].forEach(function (id) {
       if (map.getLayer(id)) { map.removeLayer(id); }
     });
     if (map.getSource(srcD)) { map.removeSource(srcD); }
     if (map.getSource(srcC)) { map.removeSource(srcC); }
+    removeLayerToggleControl();
+  }
+
+  function removeLayerToggleControl() {
+    if (layerToggleControlInstance && map) {
+      try { map.removeControl(layerToggleControlInstance); } catch (eRm) {}
+      layerToggleControlInstance = null;
+    }
+  }
+
+  function createLayerToggleMapControl() {
+    var self = {
+      _map: null,
+      _container: null,
+      onAdd: function (m) {
+        this._map = m;
+        this._container = document.createElement("div");
+        this._container.className = "maplibregl-ctrl maplibregl-ctrl-group mapdisplay-layer-toolbar";
+        this._container.setAttribute("aria-label", "Map layers");
+        return this._container;
+      },
+      onRemove: function () {
+        if (this._container && this._container.parentNode) {
+          this._container.parentNode.removeChild(this._container);
+        }
+        this._map = null;
+        this._container = null;
+      },
+      getDefaultPosition: function () { return "top-left"; }
+    };
+    return self;
+  }
+
+  function syncLayerToggleButtons(bucketKeys) {
+    if (!layerToggleControlInstance || !layerToggleControlInstance._container) { return; }
+    var wrap = layerToggleControlInstance._container;
+    wrap.innerHTML = "";
+    bucketKeys.forEach(function (lid) {
+      if (layerVisibility[lid] === undefined) { layerVisibility[lid] = true; }
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mapdisplay-layer-toggle-btn";
+      btn.setAttribute("aria-pressed", layerVisibility[lid] !== false ? "true" : "false");
+      btn.title = lid === "_" ? "Other" : lid;
+      var label = lid === "_" ? "Other" : (lid.length > 24 ? lid.slice(0, 23) + "…" : lid);
+      btn.textContent = label;
+      if (layerVisibility[lid] !== false) {
+        btn.classList.add("maplibregl-ctrl-active");
+      }
+      btn.addEventListener("click", function (ev) {
+        if (ev && ev.stopPropagation) { ev.stopPropagation(); }
+        if (ev && ev.preventDefault) { ev.preventDefault(); }
+        var wasOn = layerVisibility[lid] !== false;
+        var on = !wasOn;
+        layerVisibility[lid] = on;
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+        btn.classList.toggle("maplibregl-ctrl-active", on);
+        setLayerGeomVisibility(lid, on);
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function syncLayerToolbar(bucketKeys) {
+    if (!currentLayerMode || !bucketKeys.length) {
+      removeLayerToggleControl();
+      return;
+    }
+    function mountOrRefreshLayerControl() {
+      if (!layerToggleControlInstance) {
+        layerToggleControlInstance = createLayerToggleMapControl();
+        try {
+          map.addControl(layerToggleControlInstance, "top-left");
+        } catch (eAdd) {
+          layerToggleControlInstance = null;
+          return;
+        }
+      }
+      syncLayerToggleButtons(bucketKeys);
+    }
+    mountOrRefreshLayerControl();
+    if (!layerToggleControlInstance || !layerToggleControlInstance._container) {
+      window.setTimeout(function () {
+        if (!currentLayerMode || !bucketKeys.length) { return; }
+        mountOrRefreshLayerControl();
+      }, 0);
+    }
   }
 
   function stopTick() {
@@ -343,14 +705,24 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
 
   function tick() {
     var nowSec = Date.now() / 1000;
-    var both = buildSplit(nowSec);
-    var srcDc = map.getSource(srcC);
-    if (srcDc && srcDc.setData) {
-      srcDc.setData(both.clustered);
-    }
-    var srcDd = map.getSource(srcD);
-    if (srcDd && srcDd.setData) {
-      srcDd.setData(both.directed);
+    if (currentLayerMode) {
+      var buckets = buildLayerBuckets(nowSec);
+      dynamicIds.forEach(function (x) {
+        var both = buckets[x.lid] || {
+          clustered: { type: "FeatureCollection", features: [] },
+          directed: { type: "FeatureCollection", features: [] }
+        };
+        var srcDc = map.getSource(x.srcC);
+        if (srcDc && srcDc.setData) { srcDc.setData(both.clustered); }
+        var srcDd = map.getSource(x.srcD);
+        if (srcDd && srcDd.setData) { srcDd.setData(both.directed); }
+      });
+    } else {
+      var both = buildSplit(nowSec);
+      var srcDc = map.getSource(srcC);
+      if (srcDc && srcDc.setData) { srcDc.setData(both.clustered); }
+      var srcDd = map.getSource(srcD);
+      if (srcDd && srcDd.setData) { srcDd.setData(both.directed); }
     }
   }
 
@@ -374,10 +746,223 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
     } catch (e6) {}
   }
 
+  function fitBoundsLayered(buckets) {
+    var b = new maplibregl.LngLatBounds();
+    var any = false;
+    Object.keys(buckets).forEach(function (lid) {
+      if (layerVisibility[lid] === false) { return; }
+      var both = buckets[lid];
+      both.clustered.features.forEach(function (f) {
+        if (f.geometry && f.geometry.coordinates) { b.extend(f.geometry.coordinates); any = true; }
+      });
+      both.directed.features.forEach(function (f) {
+        if (f.geometry && f.geometry.coordinates) { b.extend(f.geometry.coordinates); any = true; }
+      });
+    });
+    if (!any) { return; }
+    try {
+      map.fitBounds(b, { padding: 48, maxZoom: 12 });
+    } catch (eLb) {}
+  }
+
+  function layerSignatureFromBuckets(buckets) {
+    var keys = Object.keys(buckets).sort();
+    return keys.map(function (k) {
+      var both = buckets[k];
+      var hc = both.clustered.features.length > 0 ? 1 : 0;
+      var hd = both.directed.features.length > 0 ? 1 : 0;
+      return k + ":" + hc + hd;
+    }).join("|");
+  }
+
+  function setLayerGeomVisibility(lid, vis) {
+    var v = vis ? "visible" : "none";
+    dynamicIds.forEach(function (x) {
+      if (x.lid !== lid) { return; }
+      [x.layCC, x.layCP, x.layDS].forEach(function (id) {
+        if (id && map.getLayer(id)) {
+          try { map.setLayoutProperty(id, "visibility", v); } catch (eV) {}
+        }
+      });
+    });
+  }
+
+  function makeClusterClick(srcCId, layCCId) {
+    return function (e) {
+      closePopup();
+      var feats = map.queryRenderedFeatures(e.point, { layers: [layCCId] });
+      if (!feats.length) { return; }
+      var src = map.getSource(srcCId);
+      if (!src || typeof src.getClusterLeaves !== "function") { return; }
+      var clusterFeat = feats[0];
+      var cid = +clusterFeat.properties.cluster_id;
+      var n = +clusterFeat.properties.point_count || 0;
+      var center = clusterFeat.geometry.coordinates.slice();
+      var limit = Math.max(n, 1);
+      var leavesPromise = src.getClusterLeaves(cid, limit, 0);
+      function showLeaves(leaves) {
+        if (!leaves || !leaves.length) { return; }
+        var wrap = document.createElement("div");
+        wrap.className = "flex flex-col gap-1 min-w-[14rem] max-w-sm max-h-72 overflow-y-auto py-1";
+        var head = document.createElement("div");
+        head.className = "text-sm font-semibold opacity-90 mb-1 sticky top-0 bg-base-100 pb-1 z-10";
+        head.textContent = leaves.length + " locations";
+        wrap.appendChild(head);
+        leaves.forEach(function (leaf) {
+          var p = leaf.properties || {};
+          var row = document.createElement("div");
+          var href = p.link || "";
+          if (href) {
+            var a = document.createElement("a");
+            a.href = href;
+            a.className = "link link-primary text-sm block truncate";
+            a.textContent = href.length > 64 ? href.slice(0, 61) + "…" : href;
+            row.appendChild(a);
+          } else {
+            row.textContent = "Location";
+            row.className = "text-sm opacity-80";
+          }
+          wrap.appendChild(row);
+        });
+        popupOpen = new maplibregl.Popup({ offset: 12, closeOnClick: true, maxWidth: "360px" })
+          .setLngLat(center)
+          .setDOMContent(wrap)
+          .addTo(map);
+      }
+      if (leavesPromise && typeof leavesPromise.then === "function") {
+        leavesPromise.then(showLeaves).catch(function () {});
+      }
+    };
+  }
+
   function installFromState() {
     removeDynamicLayers();
     stopTick();
     var nowSec = Date.now() / 1000;
+    var useLayers = itemsUseLayers(rawItems);
+    currentLayerMode = useLayers;
+    if (!rawItems || !rawItems.length) {
+      lastLayerSig = "";
+      return;
+    }
+    if (useLayers) {
+      var buckets = buildLayerBuckets(nowSec);
+      var bucketKeys = Object.keys(buckets).filter(function (k) {
+        var both = buckets[k];
+        return both.clustered.features.length > 0 || both.directed.features.length > 0;
+      }).sort();
+      if (!bucketKeys.length) {
+        lastLayerSig = "";
+        return;
+      }
+      lastLayerSig = layerSignatureFromBuckets(buckets);
+      var anyDirected = false;
+      bucketKeys.forEach(function (lid) {
+        var both = buckets[lid];
+        var srcCt = "md-" + suffix + "-L-" + lid + "-c-src";
+        var srcDt = "md-" + suffix + "-L-" + lid + "-d-src";
+        var layCCt = "md-" + suffix + "-L-" + lid + "-c-clusters";
+        var layCPt = "md-" + suffix + "-L-" + lid + "-c-points";
+        var layDSt = "md-" + suffix + "-L-" + lid + "-d-sym";
+        var entry = { lid: lid, srcC: srcCt, srcD: srcDt, layCC: layCCt, layCP: layCPt, layDS: layDSt };
+        if (both.clustered.features.length) {
+          map.addSource(srcCt, {
+            type: "geojson",
+            data: both.clustered,
+            cluster: true,
+            clusterMaxZoom: 14,
+            clusterRadius: clusterRadiusForDisplay(),
+            clusterMinPoints: 2
+          });
+          map.addLayer({
+            id: layCCt,
+            type: "circle",
+            source: srcCt,
+            filter: ["has", "point_count"],
+            paint: {
+              "circle-color": "#818cf8",
+              "circle-radius": [
+                "step", ["get", "point_count"],
+                16, 10, 20, 50, 24, 200, 30
+              ],
+              "circle-opacity": 0.92,
+              "circle-stroke-width": 2,
+              "circle-stroke-color": "#e0e7ff"
+            }
+          });
+          map.addLayer({
+            id: layCPt,
+            type: "circle",
+            source: srcCt,
+            filter: ["!", ["has", "point_count"]],
+            paint: {
+              "circle-color": "#60a5fa",
+              "circle-radius": 10,
+              "circle-stroke-width": 2,
+              "circle-stroke-color": "#ffffff"
+            }
+          });
+        }
+        if (both.directed.features.length) {
+          anyDirected = true;
+          addArrowImage();
+          map.addSource(srcDt, { type: "geojson", data: both.directed, cluster: false });
+          if (!map.hasImage || !map.hasImage(imgArrow)) { addArrowImage(); }
+          map.addLayer({
+            id: layDSt,
+            type: "symbol",
+            source: srcDt,
+            layout: {
+              "icon-image": imgArrow,
+              "icon-size": 0.5,
+              "icon-allow-overlap": true,
+              "icon-ignore-placement": true,
+              "icon-rotate": ["get", "bearing"],
+              "icon-rotation-alignment": "map"
+            }
+          });
+        }
+        if (both.clustered.features.length) {
+          entry.hUP = function (e) {
+            closePopup();
+            var feats = map.queryRenderedFeatures(e.point, { layers: [layCPt] });
+            if (!feats.length) { return; }
+            onMarkerClick(feats[0].properties || {});
+          };
+          entry.hCC = makeClusterClick(srcCt, layCCt);
+          map.on("click", layCPt, entry.hUP);
+          map.on("mouseenter", layCPt, pointerCursor);
+          map.on("mouseleave", layCPt, defaultCursor);
+          map.on("click", layCCt, entry.hCC);
+          map.on("mouseenter", layCCt, pointerCursor);
+          map.on("mouseleave", layCCt, defaultCursor);
+        }
+        if (both.directed.features.length) {
+          entry.hDS = function (e) {
+            closePopup();
+            var feats = map.queryRenderedFeatures(e.point, { layers: [layDSt] });
+            if (!feats.length) { return; }
+            onMarkerClick(feats[0].properties || {});
+          };
+          map.on("click", layDSt, entry.hDS);
+          map.on("mouseenter", layDSt, pointerCursor);
+          map.on("mouseleave", layDSt, defaultCursor);
+        }
+        dynamicIds.push(entry);
+      });
+      if (anyDirected && (!map.hasImage || !map.hasImage(imgArrow))) { addArrowImage(); }
+      dynamicIds.forEach(function (x) {
+        setLayerGeomVisibility(x.lid, layerVisibility[x.lid] !== false);
+      });
+      syncLayerToolbar(bucketKeys);
+      if (!didFit) {
+        fitBoundsLayered(buckets);
+        didFit = true;
+      }
+      startTick();
+      return;
+    }
+    lastLayerSig = "";
     var both = buildSplit(nowSec);
     if (!both.clustered.features.length && !both.directed.features.length) {
       return;
@@ -529,35 +1114,72 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
   }
 
   function applyPayload(arr) {
-    rawItems = Array.isArray(arr) ? arr : [];
+    rawItems = normalizeDecodedRows(Array.isArray(arr) ? arr : []);
     lastResponseTime = Date.now() / 1000;
     var nowSec = Date.now() / 1000;
-    var both = buildSplit(nowSec);
-    var hasC = both.clustered.features.length > 0;
-    var hasD = both.directed.features.length > 0;
-    var srcHasC = !!map.getSource(srcC);
-    var srcHasD = !!map.getSource(srcD);
-    var needsRebuild = (hasC !== srcHasC) || (hasD !== srcHasD);
-
-    if (needsRebuild) {
+    var nextLM = itemsUseLayers(rawItems);
+    if (nextLM !== currentLayerMode) {
       installFromState();
       return;
     }
-
-    if (srcHasC) {
-      var srcClustered = map.getSource(srcC);
+    currentLayerMode = nextLM;
+    if (!currentLayerMode) {
+      var both = buildSplit(nowSec);
+      var hasC = both.clustered.features.length > 0;
+      var hasD = both.directed.features.length > 0;
+      var srcHasC = !!map.getSource(srcC);
+      var srcHasD = !!map.getSource(srcD);
+      var needsRebuild = (hasC !== srcHasC) || (hasD !== srcHasD);
+      if (needsRebuild) {
+        installFromState();
+        return;
+      }
+      if (srcHasC) {
+        var srcClustered = map.getSource(srcC);
+        if (srcClustered && srcClustered.setData) {
+          srcClustered.setData(both.clustered);
+        }
+      }
+      if (srcHasD) {
+        var srcDirected = map.getSource(srcD);
+        if (srcDirected && srcDirected.setData) {
+          srcDirected.setData(both.directed);
+        }
+      }
+      if (!didFit && (hasC || hasD)) {
+        fitBoundsBoth(both);
+        didFit = true;
+      }
+      startTick();
+      return;
+    }
+    var buckets = buildLayerBuckets(nowSec);
+    var sig = layerSignatureFromBuckets(buckets);
+    if (sig !== lastLayerSig) {
+      installFromState();
+      return;
+    }
+    dynamicIds.forEach(function (x) {
+      var both = buckets[x.lid] || {
+        clustered: { type: "FeatureCollection", features: [] },
+        directed: { type: "FeatureCollection", features: [] }
+      };
+      var srcClustered = map.getSource(x.srcC);
       if (srcClustered && srcClustered.setData) {
         srcClustered.setData(both.clustered);
       }
-    }
-    if (srcHasD) {
-      var srcDirected = map.getSource(srcD);
+      var srcDirected = map.getSource(x.srcD);
       if (srcDirected && srcDirected.setData) {
         srcDirected.setData(both.directed);
       }
-    }
-    if (!didFit && (hasC || hasD)) {
-      fitBoundsBoth(both);
+    });
+    var bk = Object.keys(buckets).filter(function (k) {
+      var b = buckets[k];
+      return b.clustered.features.length > 0 || b.directed.features.length > 0;
+    }).sort();
+    syncLayerToolbar(bk);
+    if (!didFit && bk.length) {
+      fitBoundsLayered(buckets);
       didFit = true;
     }
     startTick();
@@ -699,8 +1321,40 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
   map.on("pitchend", scheduleSendViewportBounds);
   map.on("resize", scheduleSendViewportBounds);
 
+  var mapLoaded = false;
+
+  window["mapDisplay_" + suffix] = {
+    start: function () {
+      shuttingDown = false;
+      connectWebSocket();
+    },
+    flyTo: function (lng, lat, zoom) {
+      if (!map || typeof map.flyTo !== "function") { return; }
+      try {
+        map.flyTo({ center: [lng, lat], zoom: zoom, essential: true });
+      } catch (eApi0) {}
+    },
+    unproject: function (x, y) {
+      if (!map || typeof map.unproject !== "function") { return null; }
+      try {
+        var ll = map.unproject([x, y]);
+        return { lng: ll.lng, lat: ll.lat };
+      } catch (eApi1) { return null; }
+    },
+    isReady: function () { return mapLoaded; }
+  };
+
   map.on("load", function () {
-    connectWebSocket();
+    try {
+      map.addControl(new maplibregl.NavigationControl(), "top-right");
+    } catch (eNav0) {}
+    mapLoaded = true;
+    try {
+      document.dispatchEvent(new CustomEvent("mapDisplayReady", { detail: { suffix: suffix } }));
+    } catch (eRdy0) {}
+    if (!deferStart) {
+      connectWebSocket();
+    }
   });
 
   window.addEventListener("beforeunload", function () {
@@ -725,7 +1379,7 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
     lastDark = d;
     map.setStyle(d ? styleDark : styleLight);
     map.once("idle", function () {
-      didFit = false;
+      didFit = !!skipAutoFitBounds;
       installFromState();
     });
   }
@@ -736,9 +1390,27 @@ func (e *MapDisplay) Build(ctx context.Context) Node {
     if (ev.key !== "theme") { return; }
     syncStyle();
   });
+
+  }
+
+  function mapDisplayScheduleInit() {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(mapDisplayRunInit);
+      });
+    } else {
+      setTimeout(mapDisplayRunInit, 0);
+    }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mapDisplayScheduleInit);
+  } else {
+    mapDisplayScheduleInit();
+  }
 })();`
 
 	return Group([]Node{
+		StyleEl(Raw(mapCtrlCSS)),
 		Div(ID(mapElID), Class(classes)),
 		Script(Raw(initJS)),
 	})
