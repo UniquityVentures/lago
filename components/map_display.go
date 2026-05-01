@@ -316,6 +316,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   var layCPI = "md-" + suffix + "-c-icons";
   var layDS = "md-" + suffix + "-d-sym";
   var imgArrow = "md-" + suffix + "-arrow";
+  var mapMarkerIconSize = 0.32;
 
   var currentLayerMode = false;
   var dynamicIds = [];
@@ -324,7 +325,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   var layerToggleControlInstance = null;
 
   var popupOpen = null;
-  function closePopup() {
+  function closePopup() {Uncaught (in promise) DOMException: An attempt was made to use an object that is not, or is no longer, usable
     if (popupOpen) { popupOpen.remove(); popupOpen = null; }
   }
 
@@ -1172,7 +1173,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
               filter: ["all", ["!", ["has", "point_count"]], ["has", "mdIconImgId"]],
               layout: {
                 "icon-image": ["get", "mdIconImgId"],
-                "icon-size": 0.5,
+                "icon-size": mapMarkerIconSize,
                 "icon-allow-overlap": true,
                 "icon-ignore-placement": true
               }
@@ -1198,7 +1199,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
                 ["get", "arrowImg"],
                 imgArrow
               ],
-              "icon-size": 0.5,
+              "icon-size": mapMarkerIconSize,
               "icon-allow-overlap": true,
               "icon-ignore-placement": true,
               "icon-rotate": ["get", "bearing"],
@@ -1302,7 +1303,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
           filter: ["all", ["!", ["has", "point_count"]], ["has", "mdIconImgId"]],
           layout: {
             "icon-image": ["get", "mdIconImgId"],
-            "icon-size": 0.5,
+            "icon-size": mapMarkerIconSize,
             "icon-allow-overlap": true,
             "icon-ignore-placement": true
           }
@@ -1326,7 +1327,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
             ["get", "arrowImg"],
             imgArrow
           ],
-          "icon-size": 0.5,
+          "icon-size": mapMarkerIconSize,
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
           "icon-rotate": ["get", "bearing"],
