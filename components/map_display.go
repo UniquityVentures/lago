@@ -56,21 +56,25 @@ func mapDisplayIDSuffix(pageKey string) string {
 	return s
 }
 
-// MapDisplay renders a MapLibre map that opens a WebSocket at DataURL and expects each
-// message body to be a JSON array (UTF-8 text frames).
+// MapDisplay renders a MapLibre map that opens a WebSocket at DataURL and streams marker payloads.
 //
 // DataURL must be a WebSocket URL (ws: or wss:) or a path beginning with "/" (scheme and host
 // are taken from the current page: wss on https, ws on http).
 //
+// Wire format (both directions, binary WebSocket frames): gzip(RFC 1952) wrapping a CBOR body.
+// Frame payloads are capped at 1048576 bytes (1 MiB). Requires CompressionStream / DecompressionStream.
+//
 // Outbound (client → server): whenever the map viewport changes (pan, zoom, rotate, pitch,
-// or container resize), the client sends a CBOR object:
+// or container resize), the client sends gzip-compressed CBOR:
 //
 //	{"type":"mapDisplayViewport","bounds":{"west":number,"south":number,"east":number,"north":number},"zoom":number}
 //
 // Longitude/latitude are in degrees from MapLibre’s current map.getBounds().
 // Sends only while the WebSocket is OPEN; debounced ~150ms across rapid events.
 //
-// Inbound (server → client) message payload: CBOR array of objects:
+// Inbound (server → client): gzip-compressed CBOR array of marker objects (see element fields below).
+//
+// Decompressed CBOR array elements:
 //   - position (required): { "lat": number, "lng": number }
 //   - direction (optional): { "x", "y" } unit vector; if set, marker uses arrow icon,
 //     rotation follows (x,y) as east/north components, and that marker is not clustered.
@@ -79,6 +83,8 @@ func mapDisplayIDSuffix(pageKey string) string {
 //   - time (optional): Unix timestamp in seconds for position; if omitted, the message
 //     receive time is used as the reference time.
 //   - link (optional): if non-empty, clicking the marker navigates the page to this URL.
+//   - title (optional): short human-readable label (e.g. item title). When set with link,
+//     cluster popups use title as anchor text instead of showing the raw URL.
 //   - layer (optional): non-empty string groups markers into separate MapLibre sources with
 //     per-layer visibility toggles. If any marker in a payload has a non-empty layer, the map
 //     enters layered mode; markers without layer use logical id "_". Legacy single-cluster
@@ -793,6 +799,29 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     return "";
   }
 
+  function rowTitleString(row) {
+    if (!row || typeof row !== "object") { return ""; }
+    var t = row.title;
+    if (typeof t === "string") {
+      t = t.trim();
+      if (t !== "") { return t; }
+    }
+    t = row.Title;
+    if (typeof t === "string") {
+      t = t.trim();
+      if (t !== "") { return t; }
+    }
+    return "";
+  }
+
+  function anchorLabelFromProps(p, href) {
+    var t = (p && typeof p.title === "string") ? p.title.trim() : "";
+    if (t === "" && p && typeof p.Title === "string") { t = p.Title.trim(); }
+    if (t !== "") { return t.length > 64 ? t.slice(0, 61) + "…" : t; }
+    if (!href) { return ""; }
+    return href.length > 64 ? href.slice(0, 61) + "…" : href;
+  }
+
   function itemsUseLayers(items) {
     if (!items || !items.length) { return false; }
     for (var i = 0; i < items.length; i++) {
@@ -815,7 +844,8 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
       var pos = positionOf(row, responseTime, nowSec);
       if (!pos) { return; }
       var link = (typeof row.link === "string") ? row.link : ((typeof row.Link === "string") ? row.Link : "");
-      var props = { link: link, idx: idx };
+      var title = rowTitleString(row);
+      var props = { link: link, title: title, idx: idx };
       applyMarkerStyleToProps(row, props);
       if (hasDirection(row)) {
         var d = row.direction || row.Direction;
@@ -857,7 +887,8 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
         };
       }
       var link = (typeof row.link === "string") ? row.link : ((typeof row.Link === "string") ? row.Link : "");
-      var props = { link: link, idx: idx };
+      var title = rowTitleString(row);
+      var props = { link: link, title: title, idx: idx };
       applyMarkerStyleToProps(row, props);
       if (hasDirection(row)) {
         var d = row.direction || row.Direction;
@@ -1113,7 +1144,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
             var a = document.createElement("a");
             a.href = href;
             a.className = "link link-primary text-sm block truncate";
-            a.textContent = href.length > 64 ? href.slice(0, 61) + "…" : href;
+            a.textContent = anchorLabelFromProps(p, href);
             row.appendChild(a);
           } else {
             row.textContent = "Location";
@@ -1439,7 +1470,7 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
           var a = document.createElement("a");
           a.href = href;
           a.className = "link link-primary text-sm block truncate";
-          a.textContent = href.length > 64 ? href.slice(0, 61) + "…" : href;
+          a.textContent = anchorLabelFromProps(p, href);
           row.appendChild(a);
         } else {
           row.textContent = "Location";
@@ -1582,6 +1613,36 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
     return 2000;
   }
 
+  function mapDisplayGzipSupported() {
+    return typeof CompressionStream !== "undefined" && typeof DecompressionStream !== "undefined";
+  }
+
+  async function mapDisplayGzipEncode(bytes) {
+    var u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    var cs = new CompressionStream("gzip");
+    var stream = new Blob([u8]).stream().pipeThrough(cs);
+    var ab = await new Response(stream).arrayBuffer();
+    return new Uint8Array(ab);
+  }
+
+  async function mapDisplayGzipDecode(bytes) {
+    var u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    var ds = new DecompressionStream("gzip");
+    var stream = new Blob([u8]).stream().pipeThrough(ds);
+    var ab = await new Response(stream).arrayBuffer();
+    return new Uint8Array(ab);
+  }
+
+  async function mapDisplayDecodeInbound(raw) {
+    if (!mapDisplayGzipSupported()) {
+      try { console.error("MapDisplay: CompressionStream unsupported; gzip wire format required"); } catch (eGz0) {}
+      return null;
+    }
+    if (typeof CBOR === "undefined" || typeof CBOR.decode !== "function") { return null; }
+    var body = await mapDisplayGzipDecode(raw);
+    return CBOR.decode(body);
+  }
+
   function clearReconnectTimer() {
     if (reconnectTimer) {
       try { window.clearTimeout(reconnectTimer); } catch (eR0) {}
@@ -1623,12 +1684,9 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
       var data;
       try {
         if (ev.data instanceof ArrayBuffer) {
-          if (typeof CBOR === "undefined" || typeof CBOR.decode !== "function") { return; }
-          data = CBOR.decode(new Uint8Array(ev.data));
+          data = await mapDisplayDecodeInbound(new Uint8Array(ev.data));
         } else if (typeof Blob !== "undefined" && ev.data instanceof Blob) {
-          if (typeof CBOR === "undefined" || typeof CBOR.decode !== "function") { return; }
-          var ab = await ev.data.arrayBuffer();
-          data = CBOR.decode(new Uint8Array(ab));
+          data = await mapDisplayDecodeInbound(new Uint8Array(await ev.data.arrayBuffer()));
         } else if (typeof ev.data === "string") {
           data = JSON.parse(ev.data);
         } else {
@@ -1657,9 +1715,13 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
   var boundsDebounceTimer = 0;
   var boundsDebounceMs = 150;
 
-  function sendViewportBoundsNow() {
+  async function sendViewportBoundsNow() {
     if (!map || typeof map.getBounds !== "function") { return; }
     if (!ws || ws.readyState !== WebSocket.OPEN) { return; }
+    if (!mapDisplayGzipSupported()) {
+      try { console.error("MapDisplay: CompressionStream unsupported; cannot send viewport"); } catch (eVp0) {}
+      return;
+    }
     try {
       var b = map.getBounds();
       var sw = b.getSouthWest();
@@ -1669,11 +1731,11 @@ body[data-theme="dark"] #` + mapElID + `.maplibregl-map .mapdisplay-layer-toolba
         bounds: { west: sw.lng, south: sw.lat, east: ne.lng, north: ne.lat },
         zoom: map.getZoom()
       };
-      if (typeof CBOR !== "undefined" && typeof CBOR.encode === "function") {
-        ws.send(CBOR.encode(msgObj));
-      } else {
-        ws.send(JSON.stringify(msgObj));
-      }
+      if (typeof CBOR === "undefined" || typeof CBOR.encode !== "function") { return; }
+      var encoded = CBOR.encode(msgObj);
+      var gz = await mapDisplayGzipEncode(encoded);
+      var buf = gz.buffer.slice(gz.byteOffset, gz.byteOffset + gz.byteLength);
+      ws.send(buf);
     } catch (eB0) {
       try { console.error("MapDisplay send viewport bounds failed", eB0); } catch (eB1) {}
     }
