@@ -59,8 +59,10 @@ func LoadConfigFromFile(path string) (LagoConfig, error) {
 				slog.Error("failed decoding plugin config", "err", err, "plugin", key)
 				return config, err
 			}
-			cfgPointer.PostConfig()
 		}
+		// Run even when the app has no [Plugins.<key>] table, so plugins can require fields
+		// (e.g. panic if mandatory secrets are missing) instead of silently skipping validation.
+		cfgPointer.PostConfig()
 	}
 
 	return config, nil
