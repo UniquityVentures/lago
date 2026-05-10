@@ -1,9 +1,11 @@
 filippo.io/edwards25519 v1.2.0 h1:crnVqOiS4jqYleHd9vaKZ+HKtHfllngJIiOpNpoJsjo=
 filippo.io/edwards25519 v1.2.0/go.mod h1:xzAOLCNug/yB62zG1bQ8uziwrIqIuxhctzJT18Q77mc=
-github.com/UniquityVentures/lago/getters v0.3.12 h1:m/UFiwLWtd29aRHbjOaiQEQr/E/XYrMk+JxS0utnaWY=
-github.com/UniquityVentures/lago/getters v0.3.12/go.mod h1:+q06FtrNnVwPYHxdALDMo0HACWFq4W71VHWtj7yIgMA=
-github.com/UniquityVentures/lago/registry v0.3.12 h1:7+9furGIsFRMfiwg12HuN2AgIpYMCI1yJb3e1uqxs7c=
-github.com/UniquityVentures/lago/registry v0.3.12/go.mod h1:fpD2t4N98ar2QHMk46Gu3Ay37DI8U4bk6oqOvLTOMys=
+github.com/UniquityVentures/lago/fields v0.3.13 h1:5eHFLLia53dj5Q0DHnehW+TaPx+W9c/mqrVnbUu1Xf8=
+github.com/UniquityVentures/lago/fields v0.3.13/go.mod h1:20YeMPmdNiBqGKDoLDE4WdcjZJThVE3DbqmNF+8Z9TE=
+github.com/UniquityVentures/lago/getters v0.3.13 h1:ryt2E4oXK0dCv2w/p7WrDd3/scqXD2dVA1Pt5UNPOzk=
+github.com/UniquityVentures/lago/getters v0.3.13/go.mod h1:+q06FtrNnVwPYHxdALDMo0HACWFq4W71VHWtj7yIgMA=
+github.com/UniquityVentures/lago/registry v0.3.13 h1:f+cHpcMzqcioF6yk/vjO5eOCh2N/BfQbCiCWRQGJ/U4=
+github.com/UniquityVentures/lago/registry v0.3.13/go.mod h1:fpD2t4N98ar2QHMk46Gu3Ay37DI8U4bk6oqOvLTOMys=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/go-sql-driver/mysql v1.9.3 h1:U/N249h2WzJ3Ukj8SowVFjdtZKfu9vlLZxjPXV1aweo=
