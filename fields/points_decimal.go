@@ -25,8 +25,9 @@ func (p DecimalSix) NormalizeDecimals() DecimalSix {
 	r := new(big.Rat)
 	if p.R == nil {
 		r = big.NewRat(0, 1)
+	} else {
+		r = r.Set(p.R)
 	}
-	r = r.Set(p.R)
 	r = r.Mul(r, big.NewRat(1000000, 1))
 	r.SetInt(new(big.Int).Div(r.Num(), r.Denom()))
 	r = r.Quo(r, big.NewRat(1000000, 1))
