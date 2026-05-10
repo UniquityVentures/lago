@@ -3,9 +3,9 @@ module github.com/UniquityVentures/lago/components
 go 1.26.1
 
 require (
-	github.com/UniquityVentures/lago/fields v0.3.13
-	github.com/UniquityVentures/lago/getters v0.3.13
-	github.com/UniquityVentures/lago/registry v0.3.13
+	github.com/UniquityVentures/lago/fields v0.3.15
+	github.com/UniquityVentures/lago/getters v0.3.15
+	github.com/UniquityVentures/lago/registry v0.3.15
 	github.com/gomarkdown/markdown v0.0.0-20260417124207-7d523f7318df
 	github.com/nyaruka/phonenumbers v1.7.2
 	gorm.io/datatypes v1.2.7

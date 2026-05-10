@@ -2,7 +2,7 @@ module github.com/UniquityVentures/lago/registry
 
 go 1.26.1
 
-require github.com/UniquityVentures/lago/getters v0.2.0
+require github.com/UniquityVentures/lago/getters v0.3.15
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
