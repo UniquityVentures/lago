@@ -1,4 +1,4 @@
-package lago
+package components
 
 import (
 	"context"
@@ -6,20 +6,20 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/UniquityVentures/lago/components"
+	"github.com/UniquityVentures/lago/fields"
 	"github.com/UniquityVentures/lago/getters"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
-// InputPointsDecimal is a decimal-amount field for [PointsTransaction].Values that
-// round-trip through [PointsDecimal] so [views.PopulateFromMap] receives the correct type
-// (unlike [components.InputText], which yields a string and breaks mapstructure decode).
+// InputPointsDecimal is a decimal-amount field for form Values that round-trip
+// through [PointsDecimal] so [views.PopulateFromMap] receives the correct type
+// (unlike [InputText], which yields a string and breaks mapstructure decode).
 type InputPointsDecimal struct {
-	components.Page
+	Page
 	Label    string
 	Name     string
-	Getter   getters.Getter[PointsDecimal]
+	Getter   getters.Getter[fields.DecimalSix]
 	Required bool
 	Classes  string
 	Hidden   bool
@@ -60,15 +60,15 @@ func (e InputPointsDecimal) Build(ctx context.Context) Node {
 func (e InputPointsDecimal) Parse(v any, _ context.Context) (any, error) {
 	vals, _ := v.([]string)
 	if len(vals) == 0 || strings.TrimSpace(vals[0]) == "" {
-		var out PointsDecimal
+		var out fields.DecimalSix
 		if err := out.UnmarshalText([]byte("")); err != nil {
-			return PointsDecimal{}, err
+			return fields.DecimalSix{}, err
 		}
 		return out, nil
 	}
-	var out PointsDecimal
+	var out fields.DecimalSix
 	if err := out.UnmarshalText([]byte(strings.TrimSpace(vals[0]))); err != nil {
-		return PointsDecimal{}, err
+		return fields.DecimalSix{}, err
 	}
 	return out, nil
 }
