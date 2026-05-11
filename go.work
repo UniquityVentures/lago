@@ -1,10 +1,6 @@
 go 1.26.1
 
 use (
-	./fields
-	./components
-	./getters
-	./lago
 	./plugins/p_dashboard
 	./plugins/p_export
 	./plugins/p_filesystem
@@ -13,7 +9,5 @@ use (
 	./plugins/p_otp
 	./plugins/p_pwa
 	./plugins/p_users
-	./registry
-	./syncmap
-	./views
+	./
 )
