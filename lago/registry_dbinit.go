@@ -16,7 +16,7 @@ type DBInitHook func(*gorm.DB) *gorm.DB
 // [AllStable] returns an internal cached slice — do not mutate it.
 var RegistryDBInit *registry.ImmutableRegistry[DBInitHook] = &registry.ImmutableRegistry[DBInitHook]{}
 
-func InitDB(config LagoConfig) (*gorm.DB, error) {
+func GetDbConn(config LagoConfig) (*gorm.DB, error) {
 	var dialector gorm.Dialector
 
 	switch config.DBType {
@@ -40,9 +40,36 @@ func InitDB(config LagoConfig) (*gorm.DB, error) {
 		// Set Unscoped to true to force hard delete instead of soft delete
 		db.Statement.Unscoped = true
 	})
+	return db, nil
+}
+
+func InitDB(db *gorm.DB, config LagoConfig) error {
+	var dialector gorm.Dialector
+
+	switch config.DBType {
+	case DBTypeSqlite:
+		dialector = sqlite.New(*config.SqliteConfig)
+	case DBTypePostgres:
+		dialector = postgres.New(*config.PostgresConfig)
+	default:
+		log.Panicf("Unrecognized db type %s", config.DBType)
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{
+		PrepareStmt: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Configure hard delete - skip soft delete and actually remove rows
+	db.Callback().Delete().Before("gorm:delete").Register("lago:hard_delete", func(db *gorm.DB) {
+		// Set Unscoped to true to force hard delete instead of soft delete
+		db.Statement.Unscoped = true
+	})
 
 	for _, p := range *RegistryDBInit.AllStable() {
 		db = p.Value(db)
 	}
-	return db, nil
+	return nil
 }

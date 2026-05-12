@@ -7,8 +7,8 @@ import (
 	"net/mail"
 
 	"github.com/UniquityVentures/lago/lago"
-	"github.com/nyaruka/phonenumbers"
 	"github.com/UniquityVentures/lago/registry"
+	"github.com/nyaruka/phonenumbers"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 )
@@ -27,7 +27,7 @@ func createSuperuserCommand(config lago.LagoConfig) *cobra.Command {
 		Use:   "createsuperuser",
 		Short: "Create a superuser account",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := lago.InitDB(config)
+			db, err := lago.GetDbConn(config)
 			if err != nil {
 				return err
 			}
@@ -77,7 +77,7 @@ func changePasswordCommand(config lago.LagoConfig) *cobra.Command {
 		Use:   "changepassword",
 		Short: "Change a user's password by email",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := lago.InitDB(config)
+			db, err := lago.GetDbConn(config)
 			if err != nil {
 				return err
 			}
@@ -113,7 +113,7 @@ func revalidateUsersCommand(config lago.LagoConfig) *cobra.Command {
 		Use:   "revalidate_users",
 		Short: "Re-parse and normalize all user email and phone fields",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := lago.InitDB(config)
+			db, err := lago.GetDbConn(config)
 			if err != nil {
 				return err
 			}

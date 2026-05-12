@@ -36,9 +36,8 @@ const (
 // so RegistryConfig is populated; pass the same plugins slice you pass to [Start]. For tools that
 // only need core DB settings, pass nil plugins.
 func LoadConfigFromFile(path string, plugins []registry.Pair[string, Plugin]) (LagoConfig, error) {
-	BuildAllRegistries(plugins)
-
 	var config LagoConfig
+
 	if path == "" {
 		return config, fmt.Errorf("config path is empty")
 	}
@@ -56,6 +55,15 @@ func LoadConfigFromFile(path string, plugins []registry.Pair[string, Plugin]) (L
 	md, err := toml.DecodeFile(resolvedPath, &config)
 	if err != nil {
 		slog.Error("failed decoding config file", "err", err, "configPath", path, "resolvedPath", resolvedPath)
+		return config, err
+	}
+
+	db, err := GetDbConn(config)
+	if err != nil {
+		return config, err
+	}
+	BuildAllRegistries(append([]registry.Pair[string, Plugin]{CorePlugin(db, config)}, plugins...))
+	if err := InitDB(db, config); err != nil {
 		return config, err
 	}
 

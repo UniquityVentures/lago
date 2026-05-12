@@ -32,7 +32,7 @@ func Start(config LagoConfig, plugins []registry.Pair[string, Plugin]) error {
 		Use:   "tui",
 		Short: "Launch the TUI instead of running the server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := InitDB(config)
+			db, err := GetDbConn(config)
 			if err != nil {
 				return err
 			}

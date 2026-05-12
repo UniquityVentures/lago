@@ -16,7 +16,7 @@ type Generator struct {
 }
 
 func RunGenerators(config LagoConfig) {
-	db, err := InitDB(config)
+	db, err := GetDbConn(config)
 	if err != nil {
 		slog.Error("Failed to initialize database for generators", "error", err)
 		return

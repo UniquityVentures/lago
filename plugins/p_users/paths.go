@@ -5,11 +5,6 @@ import (
 	"github.com/UniquityVentures/lago/registry"
 )
 
-const (
-	AppUrl  = "/users/"
-	RoleUrl = "/roles/"
-)
-
 func pluginRoutes() lago.PluginFeatures[lago.Route] {
 	return lago.PluginFeatures[lago.Route]{
 		Entries: []registry.Pair[string, lago.Route]{
