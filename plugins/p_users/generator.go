@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/registry"
 	"gorm.io/gorm"
 )
 
@@ -137,17 +138,22 @@ func CreateOverallSuperuser(db *gorm.DB) (*User, error) {
 	return new(user), nil
 }
 
-func init() {
-	lago.RegistryGenerator.Register("users.Generator", lago.Generator{
-		Create: func(db *gorm.DB) error {
-			_, err := CreateOverallSuperuser(db)
-			return err
-		},
-		Remove: func(db *gorm.DB) error {
-			if err := db.Unscoped().Where("1=1").Delete(&User{}).Error; err != nil {
-				return err
-			}
-			return nil
-		},
-	})
+func pluginGenerators() lago.PluginFeatures[lago.Generator] {
+	return lago.PluginFeatures[lago.Generator]{
+		Entries: []registry.Pair[string, lago.Generator]{{
+			Key: "users.Generator",
+			Value: lago.Generator{
+				Create: func(db *gorm.DB) error {
+					_, err := CreateOverallSuperuser(db)
+					return err
+				},
+				Remove: func(db *gorm.DB) error {
+					if err := db.Unscoped().Where("1=1").Delete(&User{}).Error; err != nil {
+						return err
+					}
+					return nil
+				},
+			},
+		}},
+	}
 }

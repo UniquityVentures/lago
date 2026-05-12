@@ -11,7 +11,7 @@ import (
 	. "maragu.dev/gomponents"
 )
 
-var RegistryView *registry.Registry[*views.View] = registry.NewRegistry[*views.View]()
+var RegistryView *registry.ImmutableRegistry[*views.View] = &registry.ImmutableRegistry[*views.View]{}
 
 type DynamicView struct {
 	Key string

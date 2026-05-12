@@ -11,7 +11,7 @@ import (
 	"github.com/UniquityVentures/lago/registry"
 )
 
-var RegistryRoute *registry.Registry[Route] = registry.NewRegistry[Route]()
+var RegistryRoute *registry.ImmutableRegistry[Route] = &registry.ImmutableRegistry[Route]{}
 
 type Route struct {
 	Path    string

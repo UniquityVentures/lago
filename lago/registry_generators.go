@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var RegistryGenerator *registry.Registry[Generator] = registry.NewRegistry[Generator]()
+var RegistryGenerator *registry.ImmutableRegistry[Generator] = &registry.ImmutableRegistry[Generator]{}
 
 type Generator struct {
 	Create func(*gorm.DB) error

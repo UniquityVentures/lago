@@ -9,6 +9,7 @@ import (
 
 	"github.com/UniquityVentures/lago/getters"
 	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/registry"
 	"github.com/UniquityVentures/lago/views"
 	"gorm.io/gorm"
 )
@@ -270,195 +271,161 @@ func selfChangePasswordHandler(v *views.View) http.Handler {
 	})
 }
 
-func init() {
-	lago.RegistryView.Register("users.ListView",
-		lago.GetPageView("users.UserTable").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.list", views.LayerList[User]{
-				Key: getters.Static("users"),
-			}))
-
-	lago.RegistryView.Register("users.DetailView",
-		lago.GetPageView("users.UserDetail").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.detail", views.LayerDetail[User]{
-				Key:          getters.Static("user"),
-				PathParamKey: getters.Static("id"),
-			}))
-
-	lago.RegistryView.Register("users.CreateView",
-		lago.GetPageView("users.UserCreateForm").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.create", views.LayerCreate[User]{
-				SuccessURL: lago.RoutePath("users.DetailRoute", map[string]getters.Getter[any]{
-					"id": getters.Any(getters.Key[uint]("$id")),
-				}),
-			}))
-
-	lago.RegistryView.Register("users.UpdateView",
-		lago.GetPageView("users.UserUpdateForm").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.detail", views.LayerDetail[User]{
-				Key:          getters.Static("user"),
-				PathParamKey: getters.Static("id"),
-			}).
-			WithLayer("users.update", views.LayerUpdate[User]{
-				Key: getters.Static("user"),
-				SuccessURL: lago.RoutePath("users.DetailRoute", map[string]getters.Getter[any]{
-					"id": getters.Any(getters.Key[uint]("user.ID")),
-				}),
-			}))
-
-	lago.RegistryView.Register("users.SelfDetailView",
-		lago.GetPageView("users.SelfDetail").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.self_detail", authenticatedUserDetailLayer{}))
-
-	lago.RegistryView.Register("users.SelfUpdateView",
-		lago.GetPageView("users.SelfUpdateForm").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.self_detail", authenticatedUserDetailLayer{}).
-			WithLayer("users.self_update", views.LayerUpdate[User]{
-				Key:        getters.Static("user"),
-				SuccessURL: lago.RoutePath("users.SelfDetailRoute", nil),
-			}))
-
-	lago.RegistryView.Register("users.SelfChangePasswordView",
-		lago.GetPageView("users.SelfChangePasswordForm").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.self_detail", authenticatedUserDetailLayer{}).
-			WithLayer("users.self_change_password", views.MethodLayer{
-				Method:  http.MethodPost,
-				Handler: selfChangePasswordHandler,
-			}))
-
-	lago.RegistryView.Register("users.DeleteView",
-		lago.GetPageView("users.UserDeleteForm").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.detail", views.LayerDetail[User]{
-				Key:          getters.Static("user"),
-				PathParamKey: getters.Static("id"),
-			}).
-			WithLayer("users.delete", views.LayerDelete[User]{
-				Key:        getters.Static("user"),
-				SuccessURL: lago.RoutePath("users.ListRoute", nil),
-			}))
-
-	lago.RegistryView.Register("users.ChangePasswordView",
-		lago.GetPageView("users.ChangePasswordForm").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.detail", views.LayerDetail[User]{
-				Key:          getters.Static("user"),
-				PathParamKey: getters.Static("id"),
-			}).
-			WithLayer("users.change_password", views.MethodLayer{
-				Method:  http.MethodPost,
-				Handler: changePasswordHandler,
-			}))
-
-	lago.RegistryView.Register("users.SelectView",
-		lago.GetPageView("users.UserSelectionTable").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.select", views.LayerList[User]{
-				Key: getters.Static("users"),
-			}))
-
-	lago.RegistryView.Register("users.RoleSelectView",
-		lago.GetPageView("users.RoleSelectionTable").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.role_select", views.LayerList[Role]{
-				Key: getters.Static("roles"),
-			}))
-
-	lago.RegistryView.Register("users.RoleListView",
-		lago.GetPageView("users.RoleTable").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.role_list", views.LayerList[Role]{
-				Key: getters.Static("roles"),
-			}))
-
-	lago.RegistryView.Register("users.RoleDetailView",
-		lago.GetPageView("users.RoleDetail").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.role_detail", views.LayerDetail[Role]{
-				Key:          getters.Static("role"),
-				PathParamKey: getters.Static("id"),
-			}))
-
-	lago.RegistryView.Register("users.RoleCreateView",
-		lago.GetPageView("users.RoleCreateForm").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.role_create", views.LayerCreate[Role]{
-				SuccessURL: lago.RoutePath("users.RoleDetailRoute", map[string]getters.Getter[any]{
-					"id": getters.Any(getters.Key[uint]("$id")),
-				}),
-			}))
-
-	lago.RegistryView.Register("users.RoleUpdateView",
-		lago.GetPageView("users.RoleUpdateForm").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.role_detail", views.LayerDetail[Role]{
-				Key:          getters.Static("role"),
-				PathParamKey: getters.Static("id"),
-			}).
-			WithLayer("users.role_update", views.LayerUpdate[Role]{
-				Key: getters.Static("role"),
-				SuccessURL: lago.RoutePath("users.RoleDetailRoute", map[string]getters.Getter[any]{
-					"id": getters.Any(getters.Key[uint]("role.ID")),
-				}),
-			}))
-
-	lago.RegistryView.Register("users.RoleDeleteView",
-		lago.GetPageView("users.RoleDeleteForm").
-			WithLayer("users.auth", AuthenticationLayer{}).
-			WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
-			WithLayer("users.role_detail", views.LayerDetail[Role]{
-				Key:          getters.Static("role"),
-				PathParamKey: getters.Static("id"),
-			}).
-			WithLayer("users.role_delete", views.LayerDelete[Role]{
-				Key:        getters.Static("role"),
-				SuccessURL: lago.RoutePath("users.RoleListRoute", nil),
-			}))
-
-	lago.RegistryView.Register("users.LogoutView",
-		lago.GetPageView("users.UnauthenticatedPage").
-			WithLayer("users.logout_post", views.MethodLayer{
-				Method:  http.MethodPost,
-				Handler: logoutHandler,
-			}).
-			WithLayer("users.logout_get", views.MethodLayer{
-				Method:  http.MethodGet,
-				Handler: logoutHandler,
-			}))
-
-	lago.RegistryView.Register("users.LoginView",
-		lago.GetPageView("users.LoginPage").
-			WithLayer("users.login", views.MethodLayer{
-				Method:  http.MethodPost,
-				Handler: loginHandler,
-			}))
-
-	lago.RegistryView.Register("users.SignupView",
-		lago.GetPageView("users.SignupPage").
-			WithLayer("users.signup", views.MethodLayer{
-				Method:  http.MethodPost,
-				Handler: signupHandler,
-			}))
-
-	lago.RegistryView.Register("base.HomeView", lago.RedirectView(lago.RoutePath("users.LoginRoute", nil)))
-	lago.RegistryView.Register("users.LoginSuccessView", lago.RedirectView(lago.RoutePath("users.LoginRoute", nil)))
-	lago.RegistryView.Register("users.UnauthenticatedView", lago.GetPageView("users.UnauthenticatedPage"))
+func pluginViews() lago.PluginFeatures[*views.View] {
+	return lago.PluginFeatures[*views.View]{
+		Entries: []registry.Pair[string, *views.View]{
+			{Key: "users.ListView", Value: lago.GetPageView("users.UserTable").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.list", views.LayerList[User]{
+					Key: getters.Static("users"),
+				})},
+			{Key: "users.DetailView", Value: lago.GetPageView("users.UserDetail").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.detail", views.LayerDetail[User]{
+					Key:          getters.Static("user"),
+					PathParamKey: getters.Static("id"),
+				})},
+			{Key: "users.CreateView", Value: lago.GetPageView("users.UserCreateForm").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.create", views.LayerCreate[User]{
+					SuccessURL: lago.RoutePath("users.DetailRoute", map[string]getters.Getter[any]{
+						"id": getters.Any(getters.Key[uint]("$id")),
+					}),
+				})},
+			{Key: "users.UpdateView", Value: lago.GetPageView("users.UserUpdateForm").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.detail", views.LayerDetail[User]{
+					Key:          getters.Static("user"),
+					PathParamKey: getters.Static("id"),
+				}).
+				WithLayer("users.update", views.LayerUpdate[User]{
+					Key: getters.Static("user"),
+					SuccessURL: lago.RoutePath("users.DetailRoute", map[string]getters.Getter[any]{
+						"id": getters.Any(getters.Key[uint]("user.ID")),
+					}),
+				})},
+			{Key: "users.SelfDetailView", Value: lago.GetPageView("users.SelfDetail").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.self_detail", authenticatedUserDetailLayer{})},
+			{Key: "users.SelfUpdateView", Value: lago.GetPageView("users.SelfUpdateForm").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.self_detail", authenticatedUserDetailLayer{}).
+				WithLayer("users.self_update", views.LayerUpdate[User]{
+					Key:        getters.Static("user"),
+					SuccessURL: lago.RoutePath("users.SelfDetailRoute", nil),
+				})},
+			{Key: "users.SelfChangePasswordView", Value: lago.GetPageView("users.SelfChangePasswordForm").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.self_detail", authenticatedUserDetailLayer{}).
+				WithLayer("users.self_change_password", views.MethodLayer{
+					Method:  http.MethodPost,
+					Handler: selfChangePasswordHandler,
+				})},
+			{Key: "users.DeleteView", Value: lago.GetPageView("users.UserDeleteForm").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.detail", views.LayerDetail[User]{
+					Key:          getters.Static("user"),
+					PathParamKey: getters.Static("id"),
+				}).
+				WithLayer("users.delete", views.LayerDelete[User]{
+					Key:        getters.Static("user"),
+					SuccessURL: lago.RoutePath("users.ListRoute", nil),
+				})},
+			{Key: "users.ChangePasswordView", Value: lago.GetPageView("users.ChangePasswordForm").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.detail", views.LayerDetail[User]{
+					Key:          getters.Static("user"),
+					PathParamKey: getters.Static("id"),
+				}).
+				WithLayer("users.change_password", views.MethodLayer{
+					Method:  http.MethodPost,
+					Handler: changePasswordHandler,
+				})},
+			{Key: "users.SelectView", Value: lago.GetPageView("users.UserSelectionTable").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.select", views.LayerList[User]{
+					Key: getters.Static("users"),
+				})},
+			{Key: "users.RoleSelectView", Value: lago.GetPageView("users.RoleSelectionTable").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.role_select", views.LayerList[Role]{
+					Key: getters.Static("roles"),
+				})},
+			{Key: "users.RoleListView", Value: lago.GetPageView("users.RoleTable").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.role_list", views.LayerList[Role]{
+					Key: getters.Static("roles"),
+				})},
+			{Key: "users.RoleDetailView", Value: lago.GetPageView("users.RoleDetail").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.role_detail", views.LayerDetail[Role]{
+					Key:          getters.Static("role"),
+					PathParamKey: getters.Static("id"),
+				})},
+			{Key: "users.RoleCreateView", Value: lago.GetPageView("users.RoleCreateForm").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.role_create", views.LayerCreate[Role]{
+					SuccessURL: lago.RoutePath("users.RoleDetailRoute", map[string]getters.Getter[any]{
+						"id": getters.Any(getters.Key[uint]("$id")),
+					}),
+				})},
+			{Key: "users.RoleUpdateView", Value: lago.GetPageView("users.RoleUpdateForm").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.role_detail", views.LayerDetail[Role]{
+					Key:          getters.Static("role"),
+					PathParamKey: getters.Static("id"),
+				}).
+				WithLayer("users.role_update", views.LayerUpdate[Role]{
+					Key: getters.Static("role"),
+					SuccessURL: lago.RoutePath("users.RoleDetailRoute", map[string]getters.Getter[any]{
+						"id": getters.Any(getters.Key[uint]("role.ID")),
+					}),
+				})},
+			{Key: "users.RoleDeleteView", Value: lago.GetPageView("users.RoleDeleteForm").
+				WithLayer("users.auth", AuthenticationLayer{}).
+				WithLayer("users.role", RoleAuthorizationLayer{Roles: []string{""}}).
+				WithLayer("users.role_detail", views.LayerDetail[Role]{
+					Key:          getters.Static("role"),
+					PathParamKey: getters.Static("id"),
+				}).
+				WithLayer("users.role_delete", views.LayerDelete[Role]{
+					Key:        getters.Static("role"),
+					SuccessURL: lago.RoutePath("users.RoleListRoute", nil),
+				})},
+			{Key: "users.LogoutView", Value: lago.GetPageView("users.UnauthenticatedPage").
+				WithLayer("users.logout_post", views.MethodLayer{
+					Method:  http.MethodPost,
+					Handler: logoutHandler,
+				}).
+				WithLayer("users.logout_get", views.MethodLayer{
+					Method:  http.MethodGet,
+					Handler: logoutHandler,
+				})},
+			{Key: "users.LoginView", Value: lago.GetPageView("users.LoginPage").
+				WithLayer("users.login", views.MethodLayer{
+					Method:  http.MethodPost,
+					Handler: loginHandler,
+				})},
+			{Key: "users.SignupView", Value: lago.GetPageView("users.SignupPage").
+				WithLayer("users.signup", views.MethodLayer{
+					Method:  http.MethodPost,
+					Handler: signupHandler,
+				})},
+			{Key: "base.HomeView", Value: lago.RedirectView(lago.RoutePath("users.LoginRoute", nil))},
+			{Key: "users.LoginSuccessView", Value: lago.RedirectView(lago.RoutePath("users.LoginRoute", nil))},
+			{Key: "users.UnauthenticatedView", Value: lago.GetPageView("users.UnauthenticatedPage")},
+		},
+	}
 }

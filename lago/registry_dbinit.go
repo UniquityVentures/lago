@@ -14,14 +14,7 @@ type DBInitHook func(*gorm.DB) *gorm.DB
 
 // RegistryDBInit stores DB init hooks; iterate with [registry.RegisterOrder] to preserve registration order.
 // [AllStable] returns an internal cached slice — do not mutate it.
-var RegistryDBInit = registry.NewRegistry[DBInitHook]()
-
-// OnDBInit registers hook under name. Duplicate names panic at init time.
-func OnDBInit(name string, hook DBInitHook) {
-	if err := RegistryDBInit.Register(name, hook); err != nil {
-		log.Panic(err)
-	}
-}
+var RegistryDBInit *registry.ImmutableRegistry[DBInitHook] = &registry.ImmutableRegistry[DBInitHook]{}
 
 func InitDB(config LagoConfig) (*gorm.DB, error) {
 	var dialector gorm.Dialector
@@ -48,7 +41,7 @@ func InitDB(config LagoConfig) (*gorm.DB, error) {
 		db.Statement.Unscoped = true
 	})
 
-	for _, p := range *RegistryDBInit.AllStable(registry.RegisterOrder[DBInitHook]{}) {
+	for _, p := range *RegistryDBInit.AllStable() {
 		db = p.Value(db)
 	}
 	return db, nil

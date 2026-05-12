@@ -5,4 +5,4 @@ import (
 	"github.com/UniquityVentures/lago/registry"
 )
 
-var RegistryPage *registry.Registry[components.PageInterface] = registry.NewRegistry[components.PageInterface]()
+var RegistryPage *registry.ImmutableRegistry[components.PageInterface] = &registry.ImmutableRegistry[components.PageInterface]{}

@@ -11,6 +11,7 @@ import (
 	"github.com/UniquityVentures/lago/getters"
 	"github.com/UniquityVentures/lago/lago"
 	"github.com/UniquityVentures/lago/plugins/p_users"
+	"github.com/UniquityVentures/lago/registry"
 	"github.com/UniquityVentures/lago/views"
 	"gorm.io/gorm"
 )
@@ -232,51 +233,61 @@ func otpVerifyHandler(v *views.View) http.Handler {
 	})
 }
 
-func init() {
-	lago.RegistryView.Register("otp.ForgotPasswordView",
-		lago.GetPageView("otp.ForgotPasswordPage"))
-
-	lago.RegistryView.Register("otp.PhoneOtpRequestView",
-		lago.GetPageView("otp.PhoneOtpRequestForm").
-			WithLayer("users.optional_auth", p_users.OptionalAuthLayer{}).
-			WithLayer("otp.phone_get", views.MethodLayer{
-				Method:  http.MethodGet,
-				Handler: phoneOtpRequestHandler,
-			}).
-			WithLayer("otp.phone_post", views.MethodLayer{
-				Method:  http.MethodPost,
-				Handler: phoneOtpRequestHandler,
-			}))
-
-	lago.RegistryView.Register("otp.EmailOtpRequestView",
-		lago.GetPageView("otp.EmailOtpRequestForm").
-			WithLayer("users.optional_auth", p_users.OptionalAuthLayer{}).
-			WithLayer("otp.email_get", views.MethodLayer{
-				Method:  http.MethodGet,
-				Handler: emailOtpRequestHandler,
-			}).
-			WithLayer("otp.email_post", views.MethodLayer{
-				Method:  http.MethodPost,
-				Handler: emailOtpRequestHandler,
-			}))
-
-	lago.RegistryView.Register("otp.OtpVerifyView",
-		lago.GetPageView("otp.OtpVerifyForm").
-			WithLayer("users.optional_auth", p_users.OptionalAuthLayer{}).
-			WithLayer("otp.verify_get", views.MethodLayer{
-				Method:  http.MethodGet,
-				Handler: otpVerifyHandler,
-			}).
-			WithLayer("otp.verify_post", views.MethodLayer{
-				Method:  http.MethodPost,
-				Handler: otpVerifyHandler,
-			}))
-
-	lago.RegistryView.Register("otp.OTPPreferencesView",
-		lago.GetPageView("otp.OTPPreferencesForm").
-			WithLayer("users.auth", p_users.AuthenticationLayer{}).
-			WithLayer("users.role", p_users.RoleAuthorizationLayer{Roles: []string{"superuser"}}).
-			WithLayer("otp.preferences", views.LayerSingleton[OTPPreferences]{
-				SuccessURL: lago.RoutePath("otp.OTPPreferencesRoute", nil),
-			}))
+func pluginViews() lago.PluginFeatures[*views.View] {
+	return lago.PluginFeatures[*views.View]{
+		Entries: []registry.Pair[string, *views.View]{
+			{
+				Key:   "otp.ForgotPasswordView",
+				Value: lago.GetPageView("otp.ForgotPasswordPage"),
+			},
+			{
+				Key: "otp.PhoneOtpRequestView",
+				Value: lago.GetPageView("otp.PhoneOtpRequestForm").
+					WithLayer("users.optional_auth", p_users.OptionalAuthLayer{}).
+					WithLayer("otp.phone_get", views.MethodLayer{
+						Method:  http.MethodGet,
+						Handler: phoneOtpRequestHandler,
+					}).
+					WithLayer("otp.phone_post", views.MethodLayer{
+						Method:  http.MethodPost,
+						Handler: phoneOtpRequestHandler,
+					}),
+			},
+			{
+				Key: "otp.EmailOtpRequestView",
+				Value: lago.GetPageView("otp.EmailOtpRequestForm").
+					WithLayer("users.optional_auth", p_users.OptionalAuthLayer{}).
+					WithLayer("otp.email_get", views.MethodLayer{
+						Method:  http.MethodGet,
+						Handler: emailOtpRequestHandler,
+					}).
+					WithLayer("otp.email_post", views.MethodLayer{
+						Method:  http.MethodPost,
+						Handler: emailOtpRequestHandler,
+					}),
+			},
+			{
+				Key: "otp.OtpVerifyView",
+				Value: lago.GetPageView("otp.OtpVerifyForm").
+					WithLayer("users.optional_auth", p_users.OptionalAuthLayer{}).
+					WithLayer("otp.verify_get", views.MethodLayer{
+						Method:  http.MethodGet,
+						Handler: otpVerifyHandler,
+					}).
+					WithLayer("otp.verify_post", views.MethodLayer{
+						Method:  http.MethodPost,
+						Handler: otpVerifyHandler,
+					}),
+			},
+			{
+				Key: "otp.OTPPreferencesView",
+				Value: lago.GetPageView("otp.OTPPreferencesForm").
+					WithLayer("users.auth", p_users.AuthenticationLayer{}).
+					WithLayer("users.role", p_users.RoleAuthorizationLayer{Roles: []string{"superuser"}}).
+					WithLayer("otp.preferences", views.LayerSingleton[OTPPreferences]{
+						SuccessURL: lago.RoutePath("otp.OTPPreferencesRoute", nil),
+					}),
+			},
+		},
+	}
 }

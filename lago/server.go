@@ -6,30 +6,12 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/UniquityVentures/lago/registry"
-	"github.com/UniquityVentures/lago/views"
 	_ "gorm.io/driver/sqlite"
 )
 
 func StartServer(config LagoConfig) error {
-	db, err := InitDB(config)
-	if err != nil {
-		return err
-	}
-
-	RegistryLayer.Register("core.AttachRequestLayer", views.AttachRequestLayer{})
-	RegistryLayer.Register("core.DbLayer", DBLayer{DB: db})
-	if config.Debug {
-		RegistryLayer.Register("core.LoggingLayer", LoggingLayer{})
-		RegistryLayer.Register("core.CacheDisableLayer", CacheDisableLayer{})
-	}
-	RegistryLayer.Register("core.HtmxBoostLayer", HtmxBoostLayer{})
-	RegistryLayer.Register("core.EnvironmentLayer", EnvironmentLayer{})
-
-	BuildAllRegistries()
-
 	// Applying all layers
-	layers := *RegistryLayer.AllStable(registry.RegisterOrder[views.GlobalLayer]{})
+	layers := *RegistryLayer.AllStable()
 	var router http.Handler = GetRouter(config)
 	for _, layer := range layers {
 		router = layer.Value.Next(router)

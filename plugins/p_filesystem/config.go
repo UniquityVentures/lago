@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/registry"
 )
 
 type StorageBackend string
@@ -48,7 +49,10 @@ func (c *FilesystemConfig) PostConfig() {
 	}
 }
 
-func init() {
-	lago.RegistryConfig.Register("p_filesystem", Config)
-	Config.PostConfig()
+func pluginConfigs() lago.PluginFeatures[lago.Config] {
+	return lago.PluginFeatures[lago.Config]{
+		Entries: []registry.Pair[string, lago.Config]{
+			{Key: "p_filesystem", Value: Config},
+		},
+	}
 }

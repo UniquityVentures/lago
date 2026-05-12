@@ -15,6 +15,59 @@ import (
 	"github.com/UniquityVentures/lago/getters"
 )
 
+// At most one entry per key, the last one survives
+type ImmutableRegistry[T any] struct {
+	itemsMap  map[string]RegistryItem[T]
+	itemsList []Pair[string, T]
+}
+
+func NewImmutableRegistry[T any](entries []Pair[string, T]) ImmutableRegistry[T] {
+	itemsMap := make(map[string]RegistryItem[T], len(entries))
+	for i, v := range entries {
+		itemsMap[v.Key] = RegistryItem[T]{
+			Order: i,
+			Item:  v.Value,
+		}
+	}
+
+	itemsList := make([]Pair[string, T], 0, len(entries))
+	presentSet := make(map[string]bool)
+
+	for _, v := range slices.Backward(entries) {
+		if !presentSet[v.Key] {
+			itemsList = append(itemsList, v)
+			presentSet[v.Key] = true
+		}
+	}
+	slices.Reverse(itemsList)
+
+	return ImmutableRegistry[T]{
+		itemsList: itemsList,
+		itemsMap:  itemsMap,
+	}
+}
+
+func (r *ImmutableRegistry[T]) Get(name string) (T, bool) {
+	var zero T
+	item, ok := r.itemsMap[name]
+	if !ok {
+		return zero, false
+	}
+	return item.Item, true
+}
+
+func (r *ImmutableRegistry[T]) AllStable() *[]Pair[string, T] {
+	return &r.itemsList
+}
+
+func (r *ImmutableRegistry[T]) All() map[string]T {
+	items := make(map[string]T, len(r.itemsList))
+	for _, item := range r.itemsList {
+		items[item.Key] = item.Value
+	}
+	return items
+}
+
 func NewRegistry[T any]() *Registry[T] {
 	return &Registry[T]{
 		unpatchedItems: map[string]RegistryItem[T]{},

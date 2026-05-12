@@ -4,53 +4,52 @@ import (
 	"github.com/UniquityVentures/lago/components"
 	"github.com/UniquityVentures/lago/getters"
 	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/registry"
 )
 
-// --- Filters ---
+func pageEntriesFilters() []registry.Pair[string, components.PageInterface] {
+	return []registry.Pair[string, components.PageInterface]{
+		{Key: "users.UserFilter", Value: &components.FormComponent[User]{
+			Attr: getters.FormBoostedGet(lago.RoutePath("users.ListRoute", nil)),
 
-func registerFilterPages() {
-	lago.RegistryPage.Register("users.UserFilter", &components.FormComponent[User]{
-		Attr: getters.FormBoostedGet(lago.RoutePath("users.ListRoute", nil)),
+			ChildrenInput: []components.PageInterface{
+				&components.InputText{Label: "Name", Name: "Name", Getter: getters.Key[string]("$get.Name")},
+				&components.InputText{Label: "Email", Name: "Email", Getter: getters.Key[string]("$get.Email")},
+				&components.InputPhone{Label: "Phone", Name: "Phone", Getter: getters.Key[string]("$get.Phone")},
+			},
+			ChildrenAction: []components.PageInterface{
+				components.ContainerRow{Classes: "flex gap-2", Children: []components.PageInterface{
+					&components.ButtonSubmit{Label: "Apply Filters"},
+					&components.ButtonClear{Label: "Clear"},
+				}},
+			},
+		}},
+		{Key: "users.UserSelectionFilter", Value: &components.FormComponent[User]{
+			Attr: getters.FormBoostedGet(lago.RoutePath("users.SelectRoute", nil)),
 
-		ChildrenInput: []components.PageInterface{
-			&components.InputText{Label: "Name", Name: "Name", Getter: getters.Key[string]("$get.Name")},
-			&components.InputText{Label: "Email", Name: "Email", Getter: getters.Key[string]("$get.Email")},
-			&components.InputPhone{Label: "Phone", Name: "Phone", Getter: getters.Key[string]("$get.Phone")},
-		},
-		ChildrenAction: []components.PageInterface{
-			components.ContainerRow{Classes: "flex gap-2", Children: []components.PageInterface{
-				&components.ButtonSubmit{Label: "Apply Filters"},
-				&components.ButtonClear{Label: "Clear"},
-			}},
-		},
-	})
+			ChildrenInput: []components.PageInterface{
+				&components.InputText{Label: "Name", Name: "Name", Getter: getters.Key[string]("$get.Name")},
+				&components.InputText{Label: "Email", Name: "Email", Getter: getters.Key[string]("$get.Email")},
+			},
+			ChildrenAction: []components.PageInterface{
+				&components.ContainerRow{Classes: "flex gap-2", Children: []components.PageInterface{
+					&components.ButtonSubmit{Label: "Apply"},
+					&components.ButtonClear{Label: "Clear"},
+				}},
+			},
+		}},
+		{Key: "users.RoleSelectionFilter", Value: &components.FormComponent[Role]{
+			Attr: getters.FormBoostedGet(lago.RoutePath("users.SelectRoute", nil)),
 
-	lago.RegistryPage.Register("users.UserSelectionFilter", &components.FormComponent[User]{
-		Attr: getters.FormBoostedGet(lago.RoutePath("users.SelectRoute", nil)),
-
-		ChildrenInput: []components.PageInterface{
-			&components.InputText{Label: "Name", Name: "Name", Getter: getters.Key[string]("$get.Name")},
-			&components.InputText{Label: "Email", Name: "Email", Getter: getters.Key[string]("$get.Email")},
-		},
-		ChildrenAction: []components.PageInterface{
-			&components.ContainerRow{Classes: "flex gap-2", Children: []components.PageInterface{
-				&components.ButtonSubmit{Label: "Apply"},
-				&components.ButtonClear{Label: "Clear"},
-			}},
-		},
-	})
-
-	lago.RegistryPage.Register("users.RoleSelectionFilter", &components.FormComponent[Role]{
-		Attr: getters.FormBoostedGet(lago.RoutePath("users.SelectRoute", nil)),
-
-		ChildrenInput: []components.PageInterface{
-			&components.InputText{Label: "Name", Name: "Name", Getter: getters.Key[string]("$get.Name")},
-		},
-		ChildrenAction: []components.PageInterface{
-			&components.ContainerRow{Classes: "flex gap-2", Children: []components.PageInterface{
-				&components.ButtonSubmit{Label: "Apply"},
-				&components.ButtonClear{Label: "Clear"},
-			}},
-		},
-	})
+			ChildrenInput: []components.PageInterface{
+				&components.InputText{Label: "Name", Name: "Name", Getter: getters.Key[string]("$get.Name")},
+			},
+			ChildrenAction: []components.PageInterface{
+				&components.ContainerRow{Classes: "flex gap-2", Children: []components.PageInterface{
+					&components.ButtonSubmit{Label: "Apply"},
+					&components.ButtonClear{Label: "Clear"},
+				}},
+			},
+		}},
+	}
 }

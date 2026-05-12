@@ -6,6 +6,7 @@ import (
 	"github.com/UniquityVentures/lago/components"
 	"github.com/UniquityVentures/lago/getters"
 	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/registry"
 )
 
 func selectionTable(name, filterName, childRoute string, multi, selectDirectories bool) *components.Modal {
@@ -46,21 +47,20 @@ func selectionTable(name, filterName, childRoute string, multi, selectDirectorie
 	}
 }
 
-func registerSelection() {
-	lago.RegistryPage.Register("filesystem.ParentSelectionTable", selectionTable("ParentID", "filesystem.ParentSelectionFilter", "filesystem.SelectChildRoute", false, true))
-	lago.RegistryPage.Register("filesystem.MultiSelectionTable", selectionTable("ParentID", "filesystem.ParentSelectionFilter", "filesystem.MultiSelectChildRoute", true, false))
-	lago.RegistryPage.Register("filesystem.DestinationSelectionTable", selectionTable("DestinationID", "filesystem.DestinationSelectionFilter", "filesystem.MoveSelectChildRoute", false, true))
-}
-
-func registerDelete() {
-	lago.RegistryPage.Register("filesystem.VNodeDeleteForm", &components.Modal{
-		UID: "filesystem-vnode-delete-modal",
-		Children: []components.PageInterface{
-			&components.DeleteConfirmation{
-				Title:   "Confirm Deletion",
-				Message: "Are you sure you want to delete this item? Deleting directories will remove all nested contents.",
-				Attr:    getters.FormBubbling(getters.Key[string]("$get.name")),
+func pageEntriesSelection() []registry.Pair[string, components.PageInterface] {
+	return []registry.Pair[string, components.PageInterface]{
+		{Key: "filesystem.ParentSelectionTable", Value: selectionTable("ParentID", "filesystem.ParentSelectionFilter", "filesystem.SelectChildRoute", false, true)},
+		{Key: "filesystem.MultiSelectionTable", Value: selectionTable("ParentID", "filesystem.ParentSelectionFilter", "filesystem.MultiSelectChildRoute", true, false)},
+		{Key: "filesystem.DestinationSelectionTable", Value: selectionTable("DestinationID", "filesystem.DestinationSelectionFilter", "filesystem.MoveSelectChildRoute", false, true)},
+		{Key: "filesystem.VNodeDeleteForm", Value: &components.Modal{
+			UID: "filesystem-vnode-delete-modal",
+			Children: []components.PageInterface{
+				&components.DeleteConfirmation{
+					Title:   "Confirm Deletion",
+					Message: "Are you sure you want to delete this item? Deleting directories will remove all nested contents.",
+					Attr:    getters.FormBubbling(getters.Key[string]("$get.name")),
+				},
 			},
-		},
-	})
+		}},
+	}
 }

@@ -8,16 +8,20 @@ import (
 
 	"github.com/UniquityVentures/lago/lago"
 	"github.com/nyaruka/phonenumbers"
+	"github.com/UniquityVentures/lago/registry"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 )
 
-func init() {
-	lago.RegistryCommand.Register("p_users.createsuperuser", createSuperuserCommand)
-	lago.RegistryCommand.Register("p_users.changepassword", changePasswordCommand)
-	lago.RegistryCommand.Register("p_users.revalidate_users", revalidateUsersCommand)
+func pluginCommandFactories() lago.PluginFeatures[lago.CommandFactory] {
+	return lago.PluginFeatures[lago.CommandFactory]{
+		Entries: []registry.Pair[string, lago.CommandFactory]{
+			{Key: "p_users.createsuperuser", Value: createSuperuserCommand},
+			{Key: "p_users.changepassword", Value: changePasswordCommand},
+			{Key: "p_users.revalidate_users", Value: revalidateUsersCommand},
+		},
+	}
 }
-
 func createSuperuserCommand(config lago.LagoConfig) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "createsuperuser",

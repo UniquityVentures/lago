@@ -2,12 +2,15 @@ package lago
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/spf13/cobra"
-
 	"github.com/UniquityVentures/lago/registry"
+	"github.com/spf13/cobra"
 )
 
-func Start(config LagoConfig) error {
+// Start boots the cobra CLI and server paths. Populate registries before calling this via
+// [LoadConfigFromFile(path, plugins)], which merges plugins and invokes [BuildAllRegistries];
+// plugins must match the slice passed there.
+func Start(config LagoConfig, plugins []registry.Pair[string, Plugin]) error {
+	_ = plugins
 	rootCmd := &cobra.Command{
 		Use:   "lago",
 		Short: "Lago web framework",
@@ -38,7 +41,7 @@ func Start(config LagoConfig) error {
 		},
 	})
 
-	for _, pair := range *RegistryCommand.AllStable(registry.AlphabeticalByKey[CommandFactory]{}) {
+	for _, pair := range *RegistryCommand.AllStable() {
 		rootCmd.AddCommand(pair.Value(config))
 	}
 

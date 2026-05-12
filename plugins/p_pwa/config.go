@@ -3,6 +3,7 @@ package p_pwa
 import (
 	"github.com/UniquityVentures/lago/components"
 	"github.com/UniquityVentures/lago/lago"
+	"github.com/UniquityVentures/lago/registry"
 	"maragu.dev/gomponents"
 	"maragu.dev/gomponents/html"
 )
@@ -92,6 +93,10 @@ func (c *PwaConfig) PostConfig() {
 	}
 }
 
-func init() {
-	lago.RegistryConfig.Register("p_pwa", Config)
+func pluginConfigs() lago.PluginFeatures[lago.Config] {
+	return lago.PluginFeatures[lago.Config]{
+		Entries: []registry.Pair[string, lago.Config]{
+			{Key: "p_pwa", Value: Config},
+		},
+	}
 }

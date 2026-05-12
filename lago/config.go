@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/UniquityVentures/lago/registry"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 )
@@ -30,7 +31,13 @@ const (
 	DBTypePostgres = DBType("Postgres")
 )
 
-func LoadConfigFromFile(path string) (LagoConfig, error) {
+// LoadConfigFromFile decodes the top-level config TOML, then decodes each [Plugins.<key>] section
+// into the plugin config pointer registered for that key. It calls [BuildAllRegistries] first
+// so RegistryConfig is populated; pass the same plugins slice you pass to [Start]. For tools that
+// only need core DB settings, pass nil plugins.
+func LoadConfigFromFile(path string, plugins []registry.Pair[string, Plugin]) (LagoConfig, error) {
+	BuildAllRegistries(plugins)
+
 	var config LagoConfig
 	if path == "" {
 		return config, fmt.Errorf("config path is empty")
