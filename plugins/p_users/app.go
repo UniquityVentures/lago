@@ -7,6 +7,12 @@ import (
 	"github.com/UniquityVentures/lago/lago"
 	"github.com/UniquityVentures/lago/registry"
 )
+
+const (
+	AppUrl  = "/users"
+	RoleUrl = "/users/roles"
+)
+
 // GetPlugin returns the registry contributions for this plugin for [lago.BuildAllRegistries].
 func GetPlugin() registry.Pair[string, lago.Plugin] {
 	u, err := url.Parse(AppUrl)
